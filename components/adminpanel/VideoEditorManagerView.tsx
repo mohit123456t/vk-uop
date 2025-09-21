@@ -1,23 +1,45 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
+import { collection, getDocs, doc, updateDoc, getDoc } from 'firebase/firestore';
+
+interface VideoEditor {
+    id: string;
+    name: string;
+    email: string;
+    totalEarnings: number;
+    completedTasks: number;
+    status: string;
+}
 
 const VideoEditorManagerView = () => {
-    const [videoEditors, setVideoEditors] = useState([]);
+    const [videoEditors, setVideoEditors] = useState<VideoEditor[]>([]);
     const [loading, setLoading] = useState(true);
+    const [selectedEditor, setSelectedEditor] = useState<VideoEditor | null>(null);
 
     useEffect(() => {
         const fetchVideoEditors = async () => {
-            const querySnapshot = await getDocs(collection(db, 'videoEditors'));
-            const data = [];
-            querySnapshot.forEach(doc => {
-                data.push({ id: doc.id, ...doc.data() });
+            setLoading(true);
+            const querySnapshot = await getDocs(collection(firestore, "users"));
+            const editors: VideoEditor[] = [];
+            querySnapshot.forEach((doc) => {
+                if (doc.data().role === 'video-editor') {
+                    editors.push({ ...doc.data(), id: doc.id } as VideoEditor);
+                }
             });
-            setVideoEditors(data);
+            setVideoEditors(editors);
             setLoading(false);
         };
         fetchVideoEditors();
     }, []);
+
+    const handleViewProfile = (editor: VideoEditor) => {
+        setSelectedEditor(editor);
+    };
+
+    const handleCloseProfile = () => {
+        setSelectedEditor(null);
+    };
+
 
     if (loading) {
         return (
@@ -35,70 +57,75 @@ const VideoEditorManagerView = () => {
                 <p className="text-slate-600">Manage and monitor video editor performance and assignments</p>
             </div>
 
-            {videoEditors.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
-                    <div className="text-slate-400 mb-4">
-                        <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">No Video Editors Found</h3>
-                    <p className="text-slate-500">Add video editors to start managing their activities.</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {videoEditors.map(editor => (
-                        <div key={editor.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center">
-                                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
-                                        <span className="text-red-600 font-semibold text-sm">
-                                            {editor.name?.charAt(0)?.toUpperCase() || 'V'}
-                                        </span>
-                                    </div>
-                                    <div>
-                                        <h3 className="font-semibold text-slate-900">{editor.name || 'Unnamed Video Editor'}</h3>
-                                        <p className="text-sm text-slate-500">ID: {editor.id.slice(-6)}</p>
-                                    </div>
-                                </div>
-                                <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                    editor.status === 'Active' ? 'bg-green-100 text-green-800' :
-                                    editor.status === 'Inactive' ? 'bg-red-100 text-red-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                    {editor.status || 'Active'}
-                                </div>
-                            </div>
+            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+                <table className="min-w-full leading-normal">
+                    <thead>
+                        <tr>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Name</th>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Total Earnings</th>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Completed Tasks</th>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                            <th className="px-5 py-3 border-b-2 border-gray-200 bg-gray-100"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {videoEditors.map((editor) => (
+                            <tr key={editor.id} className="hover:bg-gray-50">
+                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                    <p className="text-gray-900 whitespace-no-wrap">{editor.name}</p>
+                                    <p className="text-gray-600 whitespace-no-wrap text-xs">{editor.email}</p>
+                                </td>
+                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                    <p className="text-gray-900 whitespace-no-wrap">${editor.totalEarnings.toFixed(2)}</p>
+                                </td>
+                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                    <p className="text-gray-900 whitespace-no-wrap">{editor.completedTasks}</p>
+                                </td>
+                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
+                                    <span className={`relative inline-block px-3 py-1 font-semibold text-green-900 leading-tight`}>
+                                        <span aria-hidden className={`absolute inset-0 ${editor.status === 'Active' ? 'bg-green-200' : 'bg-red-200'} opacity-50 rounded-full`}></span>
+                                        <span className="relative">{editor.status}</span>
+                                    </span>
+                                </td>
+                                <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm text-right">
+                                    <button onClick={() => handleViewProfile(editor)} className="text-indigo-600 hover:text-indigo-900 font-semibold">View Profile</button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
 
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-blue-600">{editor.assignedCampaigns || 0}</div>
-                                    <div className="text-xs text-slate-500">Assigned Campaigns</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-green-600">{editor.videosEdited || 0}</div>
-                                    <div className="text-xs text-slate-500">Videos Edited</div>
-                                </div>
-                                <div className="text-center">
-                                    <div className="text-2xl font-bold text-yellow-600">{editor.pending || 0}</div>
-                                    <div className="text-xs text-slate-500">Pending</div>
-                                </div>
+            {selectedEditor && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
+                    <div className="bg-white rounded-lg shadow-2xl p-8 max-w-2xl w-full">
+                        <h2 className="text-2xl font-bold text-slate-800 mb-4">Video Editor Profile</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-700">Personal Details</h3>
+                                <p className="text-slate-600 mt-2"><strong>Name:</strong> {selectedEditor.name}</p>
+                                <p className="text-slate-600"><strong>Email:</strong> {selectedEditor.email}</p>
                             </div>
-
-                            <div className="text-sm text-slate-600 mb-4">
-                                <strong>Last Activity:</strong> {editor.lastActivity ? new Date(editor.lastActivity).toLocaleString() : 'Never'}
-                            </div>
-
-                            <div className="flex space-x-2">
-                                <button className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
-                                    View Details
-                                </button>
-                                <button className="flex-1 bg-green-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-700 transition-colors">
-                                    Assign Task
-                                </button>
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-700">Work Summary</h3>
+                                <p className="text-slate-600 mt-2"><strong>Total Earnings:</strong> ${selectedEditor.totalEarnings.toFixed(2)}</p>
+                                <p className="text-slate-600"><strong>Completed Tasks:</strong> {selectedEditor.completedTasks}</p>
+                                <p className="text-slate-600"><strong>Status:</strong> <span className={`font-semibold ${selectedEditor.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{selectedEditor.status}</span></p>
                             </div>
                         </div>
-                    ))}
+
+                        <div className="mt-8">
+                            <h3 className="text-lg font-semibold text-slate-700">Recent Activity</h3>
+                            <div className="mt-4 border-t border-gray-200 pt-4">
+                                {/* Activity items would be listed here */}
+                                <p className="text-slate-500">No recent activity to show.</p>
+                            </div>
+                        </div>
+                        
+                        <div className="mt-8 text-right">
+                            <button onClick={handleCloseProfile} className="px-6 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-500">Close</button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
