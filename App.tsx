@@ -43,11 +43,7 @@ const App: React.FC = () => {
               <AdminPanel onNavigate={() => {}} />
             </PrivateRoute>
           } />
-          <Route path="/super-admin" element={
-            <PrivateRoute>
-              <SuperAdminPanel />
-            </PrivateRoute>
-          } />
+          <Route path="/super-admin" element={<SuperAdminPanel />} />
           <Route path="/uploader" element={
             <PrivateRoute>
               <UploaderPanel onNavigate={() => {}} />

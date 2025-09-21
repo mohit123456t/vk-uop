@@ -27,42 +27,42 @@ const SuperAdminPanel = () => {
   const [activeView, setActiveView] = useState('dashboard');
   const [dashboardData, setDashboardData] = useState(null);
   const [financeData, setFinanceData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    let isMounted = true;
+  // useEffect(() => {
+  //   let isMounted = true;
 
-    const fetchData = async () => {
-      try {
-        const [dashboardSnapshot, financeSnapshot] = await Promise.all([
-          getDocs(collection(db, 'superAdminDashboard')),
-          getDocs(collection(db, 'superAdminFinance')),
-        ]);
+  //   const fetchData = async () => {
+  //     try {
+  //       const [dashboardSnapshot, financeSnapshot] = await Promise.all([
+  //         getDocs(collection(db, 'superAdminDashboard')),
+  //         getDocs(collection(db, 'superAdminFinance')),
+  //       ]);
 
-        if (isMounted) {
-          if (!dashboardSnapshot.empty) {
-            setDashboardData(dashboardSnapshot.docs[0].data());
-          }
-          if (!financeSnapshot.empty) {
-            setFinanceData(financeSnapshot.docs[0].data());
-          }
-          setIsLoading(false);
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
+  //       if (isMounted) {
+  //         if (!dashboardSnapshot.empty) {
+  //           setDashboardData(dashboardSnapshot.docs[0].data());
+  //         }
+  //         if (!financeSnapshot.empty) {
+  //           setFinanceData(financeSnapshot.docs[0].data());
+  //         }
+  //         setIsLoading(false);
+  //       }
+  //     } catch (error) {
+  //       console.error('Error fetching data:', error);
+  //       if (isMounted) {
+  //         setIsLoading(false);
+  //       }
+  //     }
+  //   };
 
-    fetchData();
+  //   fetchData();
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  //   return () => {
+  //     isMounted = false;
+  //   };
+  // }, []);
 
   const renderView = () => {
     if (isLoading) {
