@@ -4,9 +4,11 @@ import { ICONS } from '../../constants';
 
 const StatCard = ({ title, value, icon, colorClass }) => (
   <div className="bg-white p-4 rounded-lg shadow-sm flex items-center space-x-4 transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-    <div className={`p-3 rounded-full ${colorClass.bg}`}>
-      {React.cloneElement(icon, { className: `h-6 w-6 ${colorClass.text}` })}
-    </div>
+    {React.isValidElement(icon) && (
+      <div className={`p-3 rounded-full ${colorClass.bg}`}>
+        {React.cloneElement(icon, { className: `h-6 w-6 ${colorClass.text}` })}
+      </div>
+    )}
     <div>
       <p className="text-sm font-medium text-gray-500">{title}</p>
       <p className="text-xl font-bold text-gray-800">{value}</p>

@@ -1,4 +1,4 @@
-import { Briefcase, Users, UserX, Rocket, PlayCircle, Clock, DollarSign, Edit, FileText, UploadCloud, Image, BarChart2, TrendingUp, Award, GitPullRequest, Layout } from 'react-feather';
+import { Briefcase, Users, UserX, Rocket, PlayCircle, Clock, DollarSign, Edit, FileText, UploadCloud, Image, BarChart2, TrendingUp, Award, GitPullRequest, Layout, Broadcast, AlertCircle } from 'react-feather';
 
 export const ICONS = {
   briefcase: <Briefcase />,
@@ -16,6 +16,7 @@ export const ICONS = {
   trendingUp: <TrendingUp />,
   award: <Award />,
   pullRequest: <GitPullRequest />,
-  broadcast: <TrendingUp />,
+  broadcast: <Broadcast />,
   layout: <Layout />,
+  fallback: <AlertCircle />,
 };
