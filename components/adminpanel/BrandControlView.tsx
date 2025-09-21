@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 interface Brand {
     id: string;
@@ -16,7 +16,7 @@ const BrandControlView = ({ onViewBrand }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onSnapshot(collection(db, 'brands'), (snapshot) => {
+        const unsubscribe = onSnapshot(collection(firestore, 'brands'), (snapshot) => {
             const brandsData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()

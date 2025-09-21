@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ICONS } from '../../constants';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 const AnalyticsView = () => {
     const [reportType, setReportType] = useState('Campaign ROI');
@@ -11,8 +11,8 @@ const AnalyticsView = () => {
     const [productivityData, setProductivityData] = useState([]);
     useEffect(() => {
         const fetchAnalytics = async () => {
-            const campaignSnap = await getDocs(collection(db, 'admin/analytics/campaigns'));
-            const prodSnap = await getDocs(collection(db, 'admin/analytics/productivity'));
+            const campaignSnap = await getDocs(collection(firestore, 'admin/analytics/campaigns'));
+            const prodSnap = await getDocs(collection(firestore, 'admin/analytics/productivity'));
             const campaigns = [];
             campaignSnap.forEach(doc => campaigns.push(doc.data()));
             setCampaignData(campaigns);

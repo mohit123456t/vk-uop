@@ -1,26 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { firestore } from '../../services/firebase';
+import { collection, getDocs, doc, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ICONS } from '../../constants';
-
-// --- MOCK DATA --- //
-const initialStaffData = {
-  'Editors': [
-    { id: 1, name: 'Aarav Sharma', email: 'aarav.sharma@example.com', tasksCompleted: 25, tasksPending: 5, totalEarnings: 50000, salaryDue: 15000, activity: [{ date: '2023-10-26', task: 'Edited final cut for "Diwali Campaign Reel"' }, { date: '2023-10-24', task: 'Revised intro for "Product Launch Video"' }] },
-    { id: 2, name: 'Diya Patel', email: 'diya.patel@example.com', tasksCompleted: 30, tasksPending: 2, totalEarnings: 62000, salaryDue: 12000, activity: [{ date: '2023-10-25', task: 'Color graded "Brand Story Video"' }] },
-  ],
-  'Script Writers': [
-    { id: 4, name: 'Priya Kumar', email: 'priya.kumar@example.com', tasksCompleted: 40, tasksPending: 8, totalEarnings: 45000, salaryDue: 8000, activity: [{ date: '2023-10-26', task: 'Wrote script for "Explainer Video Q4"' }] },
-  ],
-  'Thumbnail Makers': [
-    { id: 6, name: 'Sneha Reddy', email: 'sneha.reddy@example.com', tasksCompleted: 150, tasksPending: 12, totalEarnings: 35000, salaryDue: 5000, activity: [{ date: '2023-10-27', task: 'Designed 5 thumbnails for new reel series' }] },
-  ],
-  'Uploaders': [
-    { id: 7, name: 'Vikram Mehta', email: 'vikram.mehta@example.com', tasksCompleted: 200, tasksPending: 0, totalEarnings: 28000, salaryDue: 0, activity: [{ date: '2023-10-28', task: 'Scheduled 10 videos for next week' }] },
-  ],
-  'Finance': [
-    { id: 8, name: 'Ananya Gupta', email: 'ananya.gupta@example.com', tasksCompleted: 10, tasksPending: 1, totalEarnings: 75000, salaryDue: 20000, activity: [{ date: '2023-10-27', task: 'Processed monthly payroll' }] },
-  ],
-};
-
 
 // --- CHILD COMPONENTS --- //
 const StaffCard = ({ name, count, icon, onClick }) => {
@@ -51,7 +32,8 @@ const StatDisplayCard = ({ label, value, icon }) => (
 // --- MAIN VIEW --- //
 const StaffManagementView = () => {
     // --- STATE MANAGEMENT --- //
-    const [allStaff, setAllStaff] = useState(initialStaffData);
+    const [allStaff, setAllStaff] = useState({});
+    const [loading, setLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [viewingStaffProfile, setViewingStaffProfile] = useState(null);
     
@@ -62,24 +44,84 @@ const StaffManagementView = () => {
     const [editingStaff, setEditingStaff] = useState(null);
     const [newPassword, setNewPassword] = useState('');
 
-    const staffCategories = [
-        { name: 'Editors', icon: ICONS.edit },
-        { name: 'Script Writers', icon: ICONS.fileText },
-        { name: 'Thumbnail Makers', icon: ICONS.image },
-        { name: 'Uploaders', icon: ICONS.uploadCloud },
-        { name: 'Finance', icon: ICONS.money },
-    ].map(category => ({ ...category, count: allStaff[category.name]?.length || 0 }));
+    const staffCategoriesList = [
+        { name: 'Editors', icon: ICONS.edit, role: 'video-editor' },
+        { name: 'Script Writers', icon: ICONS.fileText, role: 'script-writer' },
+        { name: 'Thumbnail Makers', icon: ICONS.image, role: 'thumbnail-maker' },
+        { name: 'Uploaders', icon: ICONS.uploadCloud, role: 'uploader' },
+        { name: 'Finance', icon: ICONS.money, role: 'finance' },
+    ];
+
+    useEffect(() => {
+        const fetchStaff = async () => {
+            setLoading(true);
+            const querySnapshot = await getDocs(collection(firestore, "users"));
+            const staffData = {};
+            staffCategoriesList.forEach(cat => staffData[cat.name] = []);
+
+            querySnapshot.forEach((doc) => {
+                const user = { ...doc.data(), id: doc.id };
+                const category = staffCategoriesList.find(c => c.role === user.role);
+                if (category) {
+                    staffData[category.name].push({
+                        ...user,
+                        tasksCompleted: user.completedTasks || 0,
+                        tasksPending: user.pendingTasks || 0,
+                        totalEarnings: user.totalEarnings || 0,
+                        salaryDue: user.salaryDue || 0,
+                        activity: user.activity || []
+                    });
+                }
+            });
+            setAllStaff(staffData);
+            setLoading(false);
+        };
+
+        fetchStaff();
+    }, []);
+
+    const staffCategories = staffCategoriesList.map(category => ({ ...category, count: allStaff[category.name]?.length || 0 }));
 
     // --- HANDLERS --- //
-    const handleAddStaff = () => {
-        setAllStaff(prev => ({ ...prev, [newStaff.role]: [...(prev[newStaff.role] || []), { ...newStaff, id: Date.now(), tasksCompleted: 0, tasksPending: 0, totalEarnings: 0, salaryDue: 0, activity: [] }] }));
-        setNewStaff({ name: '', email: '', password: '', role: '' });
-        setIsAddModalOpen(false);
+    const handleAddStaff = async () => {
+        const selectedRole = staffCategoriesList.find(c => c.name === newStaff.role);
+        if (!selectedRole) { alert('Invalid role selected'); return; }
+
+        try {
+            const docRef = await addDoc(collection(firestore, "users"), {
+                name: newStaff.name,
+                email: newStaff.email,
+                role: selectedRole.role,
+                completedTasks: 0,
+                pendingTasks: 0,
+                totalEarnings: 0,
+                salaryDue: 0,
+                activity: [],
+                status: 'Active'
+            });
+
+            const newStaffMember = { id: docRef.id, ...newStaff, role: selectedRole.role, tasksCompleted: 0, tasksPending: 0, totalEarnings: 0, salaryDue: 0, activity: [] };
+            setAllStaff(prev => ({ ...prev, [newStaff.role]: [...(prev[newStaff.role] || []), newStaffMember] }));
+
+            setNewStaff({ name: '', email: '', password: '', role: '' });
+            setIsAddModalOpen(false);
+            alert('Staff member added successfully!');
+        } catch (error) {
+            console.error("Error adding document: ", error);
+            alert(`Error adding staff: ${error.message}`);
+        }
     };
 
-    const handleRemoveStaff = (category, staffId) => {
+    const handleRemoveStaff = async (category, staffId) => {
         if(confirm('Are you sure you want to remove this staff member?')){
-            setAllStaff(prev => ({ ...prev, [category]: prev[category].filter(s => s.id !== staffId) }));
+            try {
+                await deleteDoc(doc(firestore, "users", staffId));
+                setAllStaff(prev => ({ ...prev, [category]: prev[category].filter(s => s.id !== staffId) }));
+                alert('Staff member removed.');
+            } catch (error) {
+                console.error("Error removing document: ", error);
+                alert(`Error removing staff: ${error.message}`);
+            }
         }
     };
 
@@ -96,21 +138,39 @@ const StaffManagementView = () => {
         setEditingStaff(null);
     };
 
-    const handleSalaryWithdraw = (staff) => {
-        const amount = prompt(`Enter amount to withdraw for ${staff.name} (Max: ${staff.salaryDue})`, staff.salaryDue);
-        if(amount && !isNaN(amount) && amount > 0 && amount <= staff.salaryDue) {
-            setAllStaff(prev => ({
-                ...prev,
-                [selectedCategory]: prev[selectedCategory].map(s => s.id === staff.id ? {...s, salaryDue: s.salaryDue - amount, totalEarnings: s.totalEarnings + Number(amount)} : s)
-            }));
-            setViewingStaffProfile(prev => ({...prev, salaryDue: prev.salaryDue - amount, totalEarnings: prev.totalEarnings + Number(amount)}));
-            alert(`Withdrawal of ₹${amount} for ${staff.name} processed.`)
+    const handleSalaryWithdraw = async (staff) => {
+        const amountStr = prompt(`Enter amount to withdraw for ${staff.name} (Max: ${staff.salaryDue})`, String(staff.salaryDue));
+        if(amountStr && !isNaN(Number(amountStr))) {
+            const amount = Number(amountStr);
+            if(amount > 0 && amount <= staff.salaryDue) {
+                const staffDocRef = doc(firestore, "users", staff.id);
+                const newSalaryDue = staff.salaryDue - amount;
+                const newTotalEarnings = (staff.totalEarnings || 0) + amount;
+
+                try {
+                    await updateDoc(staffDocRef, { salaryDue: newSalaryDue, totalEarnings: newTotalEarnings });
+                    setAllStaff(prev => ({ ...prev, [selectedCategory]: prev[selectedCategory].map(s => s.id === staff.id ? {...s, salaryDue: newSalaryDue, totalEarnings: newTotalEarnings} : s) }));
+                    setViewingStaffProfile(prev => ({...prev, salaryDue: newSalaryDue, totalEarnings: newTotalEarnings}));
+                    alert(`Withdrawal of ₹${amount} for ${staff.name} processed.`)
+                } catch (error) {
+                     alert(`Error processing withdrawal: ${error.message}`);
+                }
+            } else {
+                alert('Invalid withdrawal amount.');
+            }
         }
     }
 
     // --- RENDER LOGIC --- //
+    if (loading) {
+        return (
+            <div className="flex flex-col justify-center items-center h-screen w-full">
+                <div className="animate-spin rounded-full h-24 w-24 border-b-4 border-slate-900"></div>
+                <p className="text-center mt-6 text-xl font-semibold text-slate-700">Loading Staff Data...</p>
+            </div>
+        );
+    }
 
-    // 3. Staff Profile View
     if (viewingStaffProfile) {
         const staff = viewingStaffProfile;
         return (
@@ -145,7 +205,7 @@ const StaffManagementView = () => {
                     <div>
                         <h2 className="text-2xl font-bold text-gray-700 mb-4">Recent Activity</h2>
                         <ul className="space-y-3">
-                            {staff.activity.length > 0 ? staff.activity.map((act, i) => (
+                            {staff.activity && staff.activity.length > 0 ? staff.activity.map((act, i) => (
                                 <li key={i} className="bg-slate-50 p-4 rounded-lg flex justify-between items-center">
                                     <p className="text-slate-700">{act.task}</p>
                                     <p className="text-sm text-slate-500 font-medium">{act.date}</p>
@@ -158,7 +218,6 @@ const StaffManagementView = () => {
         );
     }
 
-    // 2. Staff List View
     if (selectedCategory) {
         const staffList = allStaff[selectedCategory] || [];
         return (
@@ -189,7 +248,6 @@ const StaffManagementView = () => {
         )
     }
 
-    // 1. Main Category View
     return (
       <div className="p-8 bg-gray-50 min-h-screen">
         <div className="flex justify-between items-center mb-8">
@@ -200,37 +258,35 @@ const StaffManagementView = () => {
             {staffCategories.map(cat => <StaffCard key={cat.name} {...cat} onClick={() => setSelectedCategory(cat.name)} />)}
         </div>
 
-        {/* Add Staff Modal */}
         {isAddModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
+             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
                 <h2 className="text-3xl font-bold mb-6 text-gray-800 border-b pb-4">Add New Staff Member</h2>
                 <form onSubmit={e => { e.preventDefault(); handleAddStaff(); }}>
                     <div className="space-y-4">
-                        <input type="text" placeholder="Full Name" value={newStaff.name} onChange={e => setNewStaff({ ...newStaff, name: e.target.value })} className="w-full input" required />
-                        <input type="email" placeholder="Email Address" value={newStaff.email} onChange={e => setNewStaff({ ...newStaff, email: e.target.value })} className="w-full input" required />
-                        <input type="password" placeholder="Password" value={newStaff.password} onChange={e => setNewStaff({ ...newStaff, password: e.target.value })} className="w-full input" required />
-                        <select value={newStaff.role} onChange={e => setNewStaff({ ...newStaff, role: e.target.value })} className="w-full input bg-white" required>
+                        <input type="text" placeholder="Full Name" value={newStaff.name} onChange={e => setNewStaff({ ...newStaff, name: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg" required />
+                        <input type="email" placeholder="Email Address" value={newStaff.email} onChange={e => setNewStaff({ ...newStaff, email: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg" required />
+                        <input type="password" placeholder="Password" value={newStaff.password} onChange={e => setNewStaff({ ...newStaff, password: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg" required />
+                        <select value={newStaff.role} onChange={e => setNewStaff({ ...newStaff, role: e.target.value })} className="w-full p-3 border border-gray-300 rounded-lg bg-white" required>
                             <option value="" disabled>Select a role</option>
                             {staffCategories.map(cat => <option key={cat.name} value={cat.name}>{cat.name}</option>)}
                         </select>
                     </div>
                     <div className="flex justify-end space-x-4 mt-8">
-                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="btn-secondary">Cancel</button>
-                        <button type="submit" className="btn-primary">Add Staff</button>
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                        <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Add Staff</button>
                     </div>
                 </form>
             </div></div>
         )}
 
-        {/* Edit Staff Modal */}
         {isEditModalOpen && editingStaff && (
             <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50"><div className="bg-white p-8 rounded-xl shadow-2xl w-full max-w-lg">
                 <h2 className="text-3xl font-bold mb-6 text-gray-800">Edit Password for {editingStaff.name}</h2>
                 <form onSubmit={e => { e.preventDefault(); handleUpdatePassword(); }}>
-                    <input type="password" placeholder="Enter new password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full input" required />
+                    <input type="password" placeholder="Enter new password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg" required />
                     <div className="flex justify-end space-x-4 mt-8">
-                        <button type="button" onClick={() => setIsEditModalOpen(false)} className="btn-secondary">Cancel</button>
-                        <button type="submit" className="btn-primary">Update Password</button>
+                        <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                        <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Update Password</button>
                     </div>
                 </form>
             </div></div>

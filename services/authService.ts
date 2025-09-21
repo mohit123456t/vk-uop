@@ -18,7 +18,7 @@ import {
   getDocs
 } from 'firebase/firestore';
 import { ref, set } from 'firebase/database';
-import { auth, db, database } from './firebase';
+import { auth, firestore, database } from './firebase';
 
 export interface UserProfile {
   uid: string;
@@ -75,7 +75,7 @@ class AuthService {
 
   private async loadUserProfile(uid: string) {
     try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
+      const userDoc = await getDoc(doc(firestore, 'users', uid));
       if (userDoc.exists()) {
         this.userProfile = {
           ...userDoc.data(),
@@ -83,7 +83,7 @@ class AuthService {
         } as UserProfile;
 
         // Update last login
-        await updateDoc(doc(db, 'users', uid), {
+        await updateDoc(doc(firestore, 'users', uid), {
           lastLoginAt: new Date().toISOString()
         });
       } else {
@@ -158,7 +158,7 @@ class AuthService {
       };
 
       // Save to Firestore
-      await setDoc(doc(db, 'users', user.uid), userProfile);
+      await setDoc(doc(firestore, 'users', user.uid), userProfile);
 
       // Save to Realtime Database
       await set(ref(database, 'users/' + user.uid), userProfile);
@@ -196,11 +196,11 @@ class AuthService {
           isActive: true
         };
 
-        await setDoc(doc(db, 'users', user.uid), userProfile);
+        await setDoc(doc(firestore, 'users', user.uid), userProfile);
         await set(ref(database, 'users/' + user.uid), userProfile);
       } else {
         // Update last login
-        await updateDoc(doc(db, 'users', user.uid), {
+        await updateDoc(doc(firestore, 'users', user.uid), {
           lastLoginAt: new Date().toISOString()
         });
       }
@@ -218,7 +218,7 @@ class AuthService {
   // Get user profile
   async getUserProfile(uid: string): Promise<UserProfile | null> {
     try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
+      const userDoc = await getDoc(doc(firestore, 'users', uid));
       return userDoc.exists() ? userDoc.data() as UserProfile : null;
     } catch (error) {
       console.error('Error getting user profile:', error);
@@ -229,7 +229,7 @@ class AuthService {
   // Update user profile
   async updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
     try {
-      await updateDoc(doc(db, 'users', uid), updates);
+      await updateDoc(doc(firestore, 'users', uid), updates);
       await set(ref(database, 'users/' + uid), updates);
 
       if (this.userProfile && this.userProfile.uid === uid) {

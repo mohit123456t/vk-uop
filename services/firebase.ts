@@ -19,7 +19,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore
-const db = getFirestore(app);
+const firestore = getFirestore(app);
 
 // Initialize Realtime Database
 const database = getDatabase(app);
@@ -30,12 +30,12 @@ const auth = getAuth(app);
 // Initialize Storage
 const storage = getStorage(app);
 
-export { db, auth, database, storage };
+export { firestore, auth, database, storage };
 
 // Utility functions for reel uploads and account management
 export const uploadReel = async (reelData) => {
     try {
-        const docRef = await addDoc(collection(db, 'reel_uploads'), reelData);
+        const docRef = await addDoc(collection(firestore, 'reel_uploads'), reelData);
         return docRef.id;
     } catch (error) {
         console.error('Error uploading reel:', error);
@@ -45,7 +45,7 @@ export const uploadReel = async (reelData) => {
 
 export const getUploaderAccounts = async (uploaderId) => {
     try {
-        const q = query(collection(db, 'instagram_accounts'), where('uploaderId', '==', uploaderId));
+        const q = query(collection(firestore, 'instagram_accounts'), where('uploaderId', '==', uploaderId));
         const querySnapshot = await getDocs(q);
         const accounts = [];
         querySnapshot.forEach(doc => accounts.push({ id: doc.id, ...doc.data() }));
@@ -59,7 +59,7 @@ export const getUploaderAccounts = async (uploaderId) => {
 export const checkReelUploadExists = async (reelId, accountId) => {
     try {
         const q = query(
-            collection(db, 'reel_uploads'),
+            collection(firestore, 'reel_uploads'),
             where('reelId', '==', reelId),
             where('accountId', '==', accountId)
         );
@@ -75,7 +75,7 @@ export const getDailyUploadCount = async (uploaderId) => {
     try {
         const today = new Date().toISOString().split('T')[0];
         const q = query(
-            collection(db, 'reel_uploads'),
+            collection(firestore, 'reel_uploads'),
             where('uploaderId', '==', uploaderId),
             where('uploadDate', '>=', today + 'T00:00:00'),
             where('uploadDate', '<=', today + 'T23:59:59')

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 const AddFundsPanel = ({ user }) => {
     console.log('AddFundsPanel user:', user);
@@ -12,7 +12,7 @@ const AddFundsPanel = ({ user }) => {
     useEffect(() => {
         const fetchBalance = async () => {
             if (user && user.uid) {
-                const billingDoc = doc(db, `users/${user.uid}/billing/main`);
+                const billingDoc = doc(firestore, `users/${user.uid}/billing/main`);
                 const billingSnap = await getDoc(billingDoc);
                 if (billingSnap.exists()) {
                     setBalance(billingSnap.data().balance || 0);
@@ -45,7 +45,7 @@ const AddFundsPanel = ({ user }) => {
         // Save new balance to Firestore
         if (user && user.uid) {
             console.log('Saving balance to Firestore:', newBalance, user.uid);
-            const billingDoc = doc(db, `users/${user.uid}/billing/main`);
+            const billingDoc = doc(firestore, `users/${user.uid}/billing/main`);
             await setDoc(billingDoc, { balance: newBalance }, { merge: true });
         } else {
             console.log('User is undefined, cannot save balance');
