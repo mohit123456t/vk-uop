@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 const statusColors = {
     Completed: 'bg-green-100 text-green-800',
@@ -12,7 +12,7 @@ const FinanceView = () => {
     const [payments, setPayments] = useState([]);
     useEffect(() => {
         const fetchPayments = async () => {
-            const querySnapshot = await getDocs(collection(db, 'admin/payments'));
+            const querySnapshot = await getDocs(collection(firestore, 'admin/payments'));
             const data = [];
             querySnapshot.forEach(doc => data.push(doc.data()));
             setPayments(data);

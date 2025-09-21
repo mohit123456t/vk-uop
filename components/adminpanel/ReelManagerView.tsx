@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 import { ICONS } from '../../constants';
 
 const StatusBadge = ({ status }) => {
@@ -19,7 +19,7 @@ const ReelManagerView = () => {
 
     useEffect(() => {
         const fetchReels = async () => {
-            const querySnapshot = await getDocs(collection(db, 'reels'));
+            const querySnapshot = await getDocs(collection(firestore, 'reels'));
             const reelsData = [];
             querySnapshot.forEach(doc => {
                 reelsData.push({ id: doc.id, ...doc.data() });

@@ -4,7 +4,7 @@ import { ICONS } from '../../constants';
 import FinanceView from './FinanceView';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore as db } from '../../services/firebase';
 
 const StatCard = ({ title, value, change, icon, color }) => (
     <div className={`p-6 rounded-2xl shadow-xl text-white ${color} hover:shadow-2xl transition-all duration-300 hover:scale-105 border border-white/20`}>

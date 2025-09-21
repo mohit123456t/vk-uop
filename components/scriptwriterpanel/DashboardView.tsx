@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ICONS } from '../../constants';
 import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore as db } from '../../services/firebase';
 import authService from '../../services/authService';
 
 const StatCard = ({ title, value, icon, subtitle = null, extra = null }) => (

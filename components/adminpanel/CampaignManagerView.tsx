@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 import { ICONS } from '../../constants';
 import NewCampaignForm from './NewCampaignForm';
 import CampaignDetailView from './CampaignDetailView';
@@ -24,7 +24,7 @@ const CampaignManagerView = () => {
 
     useEffect(() => {
         const fetchCampaigns = async () => {
-            const querySnapshot = await getDocs(collection(db, 'campaigns'));
+            const querySnapshot = await getDocs(collection(firestore, 'campaigns'));
             const data = [];
             querySnapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
             setCampaigns(data);

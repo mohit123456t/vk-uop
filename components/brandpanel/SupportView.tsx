@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useEffect } from 'react';
 import { collection, addDoc, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 const roles = [
     { id: 'admin', label: 'Admin' },
@@ -18,7 +18,7 @@ const SupportView = ({ user, campaigns }) => {
     useEffect(() => {
         const fetchMessages = async () => {
             if (user && user.uid && selectedCampaign) {
-                const chatCol = collection(db, `users/${user.uid}/campaigns/${selectedCampaign}/supportChats`);
+                const chatCol = collection(firestore, `users/${user.uid}/campaigns/${selectedCampaign}/supportChats`);
                 const chatSnap = await getDocs(chatCol);
                 // Filter messages by selectedRole
                 setMessages(chatSnap.docs.map(doc => doc.data()).filter(msg => msg.role === selectedRole));
@@ -31,7 +31,7 @@ const SupportView = ({ user, campaigns }) => {
 
     const handleSendMessage = async () => {
         if (!newMessage.trim() || !user || !selectedCampaign || !selectedRole) return;
-        const chatCol = collection(db, `users/${user.uid}/campaigns/${selectedCampaign}/supportChats`);
+        const chatCol = collection(firestore, `users/${user.uid}/campaigns/${selectedCampaign}/supportChats`);
         const msgObj = {
             sender: user.email,
             message: newMessage,

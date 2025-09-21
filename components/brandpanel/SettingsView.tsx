@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 const SettingsView = ({ user }) => {
     const [profile, setProfile] = useState({
@@ -36,7 +36,7 @@ const SettingsView = ({ user }) => {
     useEffect(() => {
         const fetchProfile = async () => {
             if (user && user.uid) {
-                const profileDoc = doc(db, `users/${user.uid}/profile/main`);
+                const profileDoc = doc(firestore, `users/${user.uid}/profile/main`);
                 const profileSnap = await getDoc(profileDoc);
                 if (profileSnap.exists()) {
                     setProfile({ ...profileSnap.data(), lastUpdated: profileSnap.data().lastUpdated || '' });
@@ -54,7 +54,7 @@ const SettingsView = ({ user }) => {
         setLoading(true);
         setMessage('');
         if (user && user.uid) {
-            const profileDoc = doc(db, `users/${user.uid}/profile/main`);
+            const profileDoc = doc(firestore, `users/${user.uid}/profile/main`);
             const updatedProfile = { ...profile, lastUpdated: new Date().toISOString() };
             await setDoc(profileDoc, updatedProfile);
             setProfile(updatedProfile);

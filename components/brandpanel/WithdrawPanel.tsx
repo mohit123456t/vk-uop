@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 const WithdrawPanel = ({ user, currentBalance, setCurrentBalance }) => {
     const [amount, setAmount] = useState('');
@@ -21,7 +21,7 @@ const WithdrawPanel = ({ user, currentBalance, setCurrentBalance }) => {
         alert(`₹${amt.toFixed(2)} withdrawn from your balance.`);
         // Save new balance to Firestore
         if (user && user.uid) {
-            const billingDoc = doc(db, `users/${user.uid}/billing/main`);
+            const billingDoc = doc(firestore, `users/${user.uid}/billing/main`);
             await setDoc(billingDoc, { balance: newBalance }, { merge: true });
         }
     };

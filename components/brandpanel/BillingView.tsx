@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import AddFundsPanel from './AddFundsPanel';
 import WithdrawPanel from './WithdrawPanel';
@@ -17,7 +17,7 @@ const BillingView = ({ user }) => {
             if (user && user.uid) {
                 try {
                     // Fetch balance and budget only
-                    const billingDoc = doc(db, `users/${user.uid}/billing/main`);
+                    const billingDoc = doc(firestore, `users/${user.uid}/billing/main`);
                     const billingSnap = await getDoc(billingDoc);
                     if (billingSnap.exists()) {
                         setCurrentBalance(billingSnap.data().balance || 0);
@@ -28,7 +28,7 @@ const BillingView = ({ user }) => {
                     }
 
                     // Fetch invoices
-                    const invoicesCol = collection(db, `users/${user.uid}/billing/main/invoices`);
+                    const invoicesCol = collection(firestore, `users/${user.uid}/billing/main/invoices`);
                     const invoicesSnap = await getDocs(invoicesCol);
                     setInvoices(invoicesSnap.docs.map(doc => doc.data()));
                 } catch (err) {

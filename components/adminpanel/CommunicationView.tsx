@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, storage } from '../../services/firebase';
+import { firestore as db, storage } from '../../services/firebase';
 
 interface Message {
     id: string;

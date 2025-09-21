@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ICONS } from '../../constants';
 import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 
 
 
@@ -37,7 +37,7 @@ const ReelsUploadedPage = () => {
 
   const fetchReelUploads = async () => {
     try {
-      const reelUploadsSnapshot = await getDocs(collection(db, 'reel_uploads'));
+      const reelUploadsSnapshot = await getDocs(collection(firestore, 'reel_uploads'));
       const reelUploadsData = reelUploadsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()

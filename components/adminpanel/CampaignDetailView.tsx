@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import { firestore } from '../../services/firebase';
 import { ICONS } from '../../constants';
 
 const CampaignDetailView = ({ campaignId, onClose }) => {
@@ -11,13 +11,13 @@ const CampaignDetailView = ({ campaignId, onClose }) => {
     useEffect(() => {
         const fetchCampaignDetails = async () => {
             // Fetch campaign data
-            const campaignDoc = await getDoc(doc(db, 'campaigns', campaignId));
+            const campaignDoc = await getDoc(doc(firestore, 'campaigns', campaignId));
             if (campaignDoc.exists()) {
                 setCampaign({ id: campaignDoc.id, ...campaignDoc.data() });
             }
 
             // Fetch reels for this campaign
-            const q = query(collection(db, 'reels'), where('campaignId', '==', campaignId));
+            const q = query(collection(firestore, 'reels'), where('campaignId', '==', campaignId));
             const querySnapshot = await getDocs(q);
             const reelsData = [];
             querySnapshot.forEach(doc => reelsData.push({ id: doc.id, ...doc.data() }));

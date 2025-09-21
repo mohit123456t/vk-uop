@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '../../services/firebase';
+import { firestore as db, auth } from '../../services/firebase';
 import { ICONS } from '../../constants';
 
 const ProfileView = () => {
