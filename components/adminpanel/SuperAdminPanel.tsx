@@ -25,68 +25,33 @@ const superAdminNavItems = [
 
 const SuperAdminPanel = () => {
   const [activeView, setActiveView] = useState('dashboard');
-  const [isLoading, setIsLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState(null);
   const [financeData, setFinanceData] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    let useEffectCallCount = 0;
-    let fetchDataCallCount = 0;
-
-    console.log('SuperAdminPanel useEffect started');
-    useEffectCallCount++;
-
     let isMounted = true;
 
-    const fetchDashboardData = async () => {
-      console.log('fetchDashboardData called');
-      try {
-        const querySnapshot = await getDocs(collection(db, 'superAdminDashboard'));
-        console.log('Dashboard querySnapshot size:', querySnapshot.size);
-        if (!querySnapshot.empty) {
-          const data = querySnapshot.docs[0].data();
-          console.log('Dashboard data fetched:', data);
-          if (isMounted) setDashboardData(data);
-        } else {
-          console.warn('Dashboard collection is empty');
-          if (isMounted) setDashboardData(null);
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        if (isMounted) setDashboardData(null);
-      }
-    };
-
-    const fetchFinanceData = async () => {
-      console.log('fetchFinanceData called');
-      try {
-        const querySnapshot = await getDocs(collection(db, 'superAdminFinance'));
-        console.log('Finance querySnapshot size:', querySnapshot.size);
-        if (!querySnapshot.empty) {
-          const data = querySnapshot.docs[0].data();
-          console.log('Finance data fetched:', data);
-          if (isMounted) setFinanceData(data);
-        } else {
-          console.warn('Finance collection is empty');
-          if (isMounted) setFinanceData(null);
-        }
-      } catch (error) {
-        console.error('Error fetching finance data:', error);
-        if (isMounted) setFinanceData(null);
-      }
-    };
-
     const fetchData = async () => {
-      fetchDataCallCount++;
-      console.log('fetchData called', fetchDataCallCount, 'times');
       try {
-        await Promise.all([fetchDashboardData(), fetchFinanceData()]);
+        const [dashboardSnapshot, financeSnapshot] = await Promise.all([
+          getDocs(collection(db, 'superAdminDashboard')),
+          getDocs(collection(db, 'superAdminFinance')),
+        ]);
+
+        if (isMounted) {
+          if (!dashboardSnapshot.empty) {
+            setDashboardData(dashboardSnapshot.docs[0].data());
+          }
+          if (!financeSnapshot.empty) {
+            setFinanceData(financeSnapshot.docs[0].data());
+          }
+          setIsLoading(false);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
-      } finally {
         if (isMounted) {
-          console.log('Setting isLoading to false');
           setIsLoading(false);
         }
       }
@@ -94,35 +59,16 @@ const SuperAdminPanel = () => {
 
     fetchData();
 
-    // Forced fallback to stop loader after 5 seconds
-    const forcedTimeoutId = setTimeout(() => {
-      if (isMounted) {
-        console.warn('Forced timeout reached, stopping loader');
-        setIsLoading(false);
-      }
-    }, 5000);
-
-    // Timeout fallback to stop loader after 10 seconds
-    const timeoutId = setTimeout(() => {
-      if (isMounted) {
-        console.warn('Data fetch timeout, stopping loader');
-        setIsLoading(false);
-      }
-    }, 10000);
-
     return () => {
       isMounted = false;
-      clearTimeout(timeoutId);
-      clearTimeout(forcedTimeoutId);
     };
   }, []);
 
   const renderView = () => {
-    // Loader hata diya gaya hai user request par
-    if (!dashboardData && !financeData) {
+    if (isLoading) {
       return (
-        <div className="flex items-center justify-center h-64 text-gray-600 text-lg">
-          No fetched data - Loader removed as per user request
+        <div className="flex items-center justify-center h-full">
+          <div className="text-lg font-semibold">Loading...</div>
         </div>
       );
     }

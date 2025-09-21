@@ -86,6 +86,9 @@ class AuthService {
         await updateDoc(doc(db, 'users', uid), {
           lastLoginAt: new Date().toISOString()
         });
+      } else {
+        // Handle case where user exists in auth but not in firestore
+        this.userProfile = null;
       }
     } catch (error) {
       console.error('Error loading user profile:', error);
@@ -119,34 +122,17 @@ class AuthService {
   // Login with email and password
   async loginWithEmail(email: string, password: string): Promise<UserProfile> {
     try {
-      // Special handling for Super Admin
-      if (email === 'mohitmleena2@gmail.com' && password === '123456789') {
-        const superAdminProfile: UserProfile = {
-          uid: 'super-admin-temp',
-          email: 'mohitmleena2@gmail.com',
-          name: 'Super Admin',
-          role: 'super_admin',
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-          isActive: true
-        };
-
-        this.userProfile = superAdminProfile;
-        this.notifyAuthStateListeners();
-
-        return superAdminProfile;
-      }
-
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Ensure user profile exists
-      let userProfile = await this.getUserProfile(user.uid);
-      if (!userProfile) {
+      await this.loadUserProfile(user.uid);
+
+      if (!this.userProfile) {
         throw new Error('User profile not found. Please contact administrator.');
       }
 
-      return userProfile;
+      this.notifyAuthStateListeners();
+      return this.userProfile;
     } catch (error: any) {
       console.error('Login error:', error);
       throw new Error(this.getAuthErrorMessage(error.code));

@@ -22,7 +22,6 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
   const [isRegister, setIsRegister] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
     const unsubscribe = authService.onAuthStateChange((authState) => {
       if (authState.isAuthenticated && authState.userProfile) {
         handleSuccessfulLogin(authState.userProfile);
@@ -81,8 +80,6 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
     }
   };
 
-
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -99,7 +96,7 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
         ownerName
       };
 
-      const userProfile = await authService.registerUser(email, password, userData);
+      await authService.registerUser(email, password, userData);
       setMessage('Brand account created successfully! Please login with your credentials.');
       setIsRegister(false);
 
