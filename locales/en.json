@@ -1,0 +1,20 @@
+{
+  "systemSettings": {
+    "title": "System Settings",
+    "description": "Manage agency-wide settings, automation, roles, and security.",
+    "automationControls": "Automation Controls",
+    "autoAssignTasks": "Auto-assign tasks to team members",
+    "autoAssignTasksDesc": "Based on workload and performance score.",
+    "autoInvoice": "Auto-invoice brands on campaign completion",
+    "securityAccess": "Security & Access",
+    "roleBasedAccessControl": "Role-Based Access Control",
+    "roleBasedAccessControlDesc": "Define permissions for Admins, Team Leads, etc.",
+    "manageRoles": "Manage Roles",
+    "adminActivityLogs": "Admin Activity Logs",
+    "adminActivityLogsDesc": "Track all configuration changes made by admins.",
+    "viewLogs": "View Logs",
+    "twoFactorAuth": "Two-Factor Authentication (2FA)",
+    "enforce2FA": "Enforce 2FA for all team members",
+    "configure2FA": "Configure 2FA"
+  }
+}
