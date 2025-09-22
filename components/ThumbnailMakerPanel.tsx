@@ -6,6 +6,8 @@ import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'fire
 import { firestore as db } from '../services/firebase';
 import authService from '../services/authService';
 import ProfileView from './thumbnailmakerpanel/ProfileView';
+import EarningsView from './thumbnailmakerpanel/EarningsView';
+import CommunicationView from './thumbnailmakerpanel/CommunicationView';
 
 const NavItem = ({ icon, label, active, onClick, ...props }) => (
     <button
@@ -117,16 +119,7 @@ const ThumbnailMakerPanel = () => {
     const renderView = () => {
         switch (activeView) {
             case 'communication':
-                return (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-2xl font-bold text-slate-900 flex items-center"><span className="mr-2 animate-bounce">💬</span>Communication Hub</h2>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                           {/* Cards for communication */}
-                        </div>
-                    </div>
-                );
+                return <CommunicationView />;
             case 'my-tasks':
                 return (
                     <div className="space-y-6">
@@ -164,16 +157,7 @@ const ThumbnailMakerPanel = () => {
                     </div>
                 );
             case 'earnings':
-                return (
-                    <div className="space-y-6">
-                         <div className="flex justify-between items-center">
-                            <h2 className="text-2xl font-bold text-slate-900 flex items-center"><span className="mr-2 animate-bounce">💰</span>Your Earnings</h2>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                           {/* Earning cards */}
-                        </div>
-                    </div>
-                );
+                return <EarningsView />;
             case 'profile':
                 return <ProfileView userProfile={userProfile} />;
             case 'dashboard':
