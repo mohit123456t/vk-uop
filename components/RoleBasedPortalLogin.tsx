@@ -21,49 +21,38 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
   const [message, setMessage] = useState('');
   const [isRegister, setIsRegister] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((authState) => {
-      if (authState.isAuthenticated && authState.userProfile) {
-        handleSuccessfulLogin(authState.userProfile);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
   const handleSuccessfulLogin = (userProfile: any) => {
     if (onLoginSuccess) {
       onLoginSuccess(userProfile);
     }
 
-    // Redirect based on role
     switch (userProfile.role) {
-      case 'brand':
-        navigate('/brand');
-        break;
-      case 'uploader':
-        navigate('/uploader');
-        break;
-      case 'script-writer':
-        navigate('/script-writer');
-        break;
-      case 'video-editor':
-        navigate('/video-editor');
-        break;
-      case 'thumbnail-maker':
-        navigate('/thumbnail-maker');
-        break;
-      case 'admin':
-        navigate('/admin');
-        break;
-      case 'super_admin':
-        navigate('/super-admin');
-        break;
+      case 'brand': navigate('/brand'); break;
+      case 'uploader': navigate('/uploader'); break;
+      case 'script-writer': navigate('/script-writer'); break;
+      case 'video-editor': navigate('/video-editor'); break;
+      case 'thumbnail-maker': navigate('/thumbnail-maker'); break;
+      case 'admin': navigate('/admin'); break;
+      case 'super_admin': navigate('/super-admin'); break;
       default:
-        setError(`Unknown user role: ${userProfile.role}. Please contact administrator.`);
-        navigate('/');
+        setError(`Your user role ('${userProfile.role}') is not recognized. You have been logged out.`);
+        authService.signOutUser();
+        // Do not navigate away, so the user can see the error on the login page.
+        break;
     }
   };
+
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChange((authState) => {
+      if (authState.isAuthenticated && authState.userProfile) {
+        handleSuccessfulLogin(authState.userProfile);
+      }
+      // If not authenticated, just stay on the login page.
+      // No need for an else clause to navigate.
+    });
+
+    return () => unsubscribe();
+  }, [navigate]); // Added navigate to dependency array
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,16 +60,11 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
     setError('');
     setMessage('');
 
-    if (email === 'mohitmleena2@gmail.com' && password === '123456789') {
-      navigate('/super-admin');
-      return;
-    }
-
     try {
-      const userProfile = await authService.loginWithEmail(email, password);
-      handleSuccessfulLogin(userProfile);
+      await authService.signIn(email, password);
+      // onAuthStateChange will handle redirection upon successful login
     } catch (error: any) {
-      setError(error.message);
+      setError(error.message || "Failed to login. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -92,28 +76,12 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
     setError('');
 
     try {
-      const userData = {
-        email,
-        name,
-        role: 'brand' as const,
-        brandName,
-        address,
-        mobileNumber: mobile,
-        ownerName
-      };
-
-      await authService.registerUser(email, password, userData);
-      setMessage('Brand account created successfully! Please login with your credentials.');
-      setIsRegister(false);
-
-      // Clear form
-      setName('');
-      setBrandName('');
-      setAddress('');
-      setMobile('');
-      setOwnerName('');
+      const additionalData = { brandName, address, mobileNumber: mobile, ownerName };
+      await authService.signUpWithRole(name, email, password, 'brand', additionalData);
+      setMessage('Registration successful! Redirecting...');
+      // onAuthStateChange will handle redirection
     } catch (error: any) {
-      setError(error.message);
+      setError(error.message || "Registration failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -123,10 +91,10 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
     setLoading(true);
     setError('');
     try {
-      const userProfile = await authService.loginWithGoogle();
-      handleSuccessfulLogin(userProfile);
+      await authService.signInWithGoogle();
+      // onAuthStateChange will handle redirection
     } catch (error: any) {
-      setError(error.message);
+      setError(error.message || "Google sign-in failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -149,7 +117,8 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
 
       <div className="w-full max-w-md">
         <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-6">
-          <div>
+          {/* Input fields... */}
+            <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
               Email Address
             </label>
@@ -275,14 +244,10 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
             disabled={loading}
             className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 btn-hover-effect disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading
-              ? (isRegister ? 'Creating Account...' : 'Signing in...')
-              : (isRegister ? 'Create Brand Account' : 'Sign In')
-            }
+            {loading ? (isRegister ? 'Creating Account...' : 'Signing in...') : (isRegister ? 'Create Brand Account' : 'Sign In')}
           </button>
         </form>
 
-        {/* Divider */}
         <div className="mt-6 mb-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -294,14 +259,13 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
           </div>
         </div>
 
-        {/* Google Sign In */}
         <button
           type="button"
           onClick={handleGoogleLogin}
           disabled={loading}
           className="w-full px-6 py-3 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
         >
-          <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+           <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
             <path
               fill="currentColor"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -322,19 +286,13 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
           {loading ? 'Signing in...' : 'Continue with Google'}
         </button>
 
-        {/* Toggle between Login and Signup */}
         <button
-          onClick={() => {
-            setIsRegister(!isRegister);
-            setError('');
-            setMessage('');
-          }}
+          onClick={() => { setIsRegister(!isRegister); setError(''); setMessage(''); }}
           className="mt-4 text-sm text-slate-600 hover:text-slate-900 transition-colors w-full text-center"
         >
           {isRegister ? 'Already have an account? Sign In' : 'Need a brand account? Sign Up'}
         </button>
 
-        {/* Back to Home */}
         <button
           onClick={() => navigate('/')}
           className="mt-8 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors w-full text-center"

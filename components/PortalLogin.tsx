@@ -1,10 +1,11 @@
  
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { onAuthStateChanged, signOut, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { ref, set } from 'firebase/database';
 import { auth, database } from '../services/firebase';
 import { saveDataToFirestore } from '../services/saveDataToFirestore';
+import authService from '../services/authService'; // Import authService
 import { ICONS } from '../constants';
 import Logo from './Logo';
 
@@ -26,22 +27,41 @@ const PortalLogin: React.FC = () => {
   const provider = new GoogleAuthProvider();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      if (user) {
-        // Redirect logged-in user directly to brand panel
-        console.log('User logged in:', user.email);
-        navigate('/brand');
-      } else {
-        console.log('No user logged in');
-        // If no user, stay on login/registration page
-        if (window.location.pathname !== '/portal') {
-          navigate('/portal');
+    const unsubscribe = authService.onAuthStateChange((state) => {
+        setUser(state.user);
+        if (state.user) {
+            // Use role from our custom profile to redirect
+            const role = state.userProfile?.role;
+            console.log('User logged in with role:', role);
+            switch (role) {
+                case 'admin':
+                    navigate('/admin');
+                    break;
+                case 'video-editor':
+                    navigate('/editor');
+                    break;
+                case 'script-writer':
+                    navigate('/scriptwriter');
+                    break;
+                case 'thumbnail-maker':
+                    navigate('/thumbnail');
+                    break;
+                case 'uploader':
+                    navigate('/uploader');
+                    break;
+                default:
+                    navigate('/brand'); // Default or brand user
+                    break;
+            }
+        } else {
+            console.log('No user logged in, staying on portal.');
+            if (window.location.pathname !== '/portal') {
+                navigate('/portal');
+            }
         }
-      }
     });
     return () => unsubscribe();
-  }, [navigate]);
+}, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +69,7 @@ const PortalLogin: React.FC = () => {
     setError('');
     setMessage('');
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await authService.signIn(email, password);
     } catch (error: any) {
       setError(error.message);
     } finally {
@@ -62,53 +82,17 @@ const PortalLogin: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+        // Use the authService for registration
+        await authService.signUpWithRole(name, email, password, 'brand'); // Assigning a default role
 
-      // Save user info to Firestore FIRST
-      try {
-        console.log('Saving user to Firestore:', {
-          uid: user.uid,
-          email: user.email,
-          name: name,
-          address: address,
-          mobileNumber: mobile,
-          ownerName: ownerName,
-          brandName: brandName,
-        });
-        await saveDataToFirestore('users', {
-          uid: user.uid,
-          email: user.email,
-          name: name,
-          address: address,
-          mobileNumber: mobile,
-          ownerName: ownerName,
-          brandName: brandName,
-        });
-      } catch (firestoreError) {
-        console.error('Error writing user data to Firestore:', firestoreError);
-        setError('Failed to save user data to Firestore. Please try again.');
-      }
+        // You may want to keep other data saving logic if needed for brand-specific fields
+        // This part seems specific to the 'brand' role and might need to be adjusted
 
-      // Add additional user info to Realtime Database
-      await set(ref(database, 'users/' + user.uid), {
-        uid: user.uid,
-        email: user.email,
-        name: name,
-        address: address,
-        mobileNumber: mobile,
-        ownerName: ownerName,
-        brandName: brandName,
-      }).catch((dbError) => {
-        console.error('Error writing user data to Realtime Database:', dbError);
-        setError('Failed to save user data. Please try again.');
-      });
-
-      // Sign out after registration so user can login manually
-      await signOut(auth);
-      setIsRegister(false);
-      setMessage('Registration successful! Please login with your credentials.');
-      navigate('/portal'); // Redirect explicitly to login page after sign out
+        // Sign out after registration so user can login manually
+        await authService.signOutUser();
+        setIsRegister(false);
+        setMessage('Registration successful! Please login with your credentials.');
+        navigate('/portal'); // Redirect explicitly to login page after sign out
     } catch (error: any) {
       console.error('Registration error:', error);
       setError(error.message);
@@ -121,8 +105,8 @@ const PortalLogin: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      await signInWithPopup(auth, provider);
-    } catch (error: any) {
+      await authService.signInWithGoogle();
+    } catch (error: any) { 
       setError(error.message);
     } finally {
       setLoading(false);
@@ -130,7 +114,7 @@ const PortalLogin: React.FC = () => {
   };
 
   const handleLogout = async () => {
-    await signOut(auth);
+    await authService.signOutUser();
   };
 
   return (
@@ -144,7 +128,7 @@ const PortalLogin: React.FC = () => {
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 mb-2">
               Welcome
             </h1>
-            <p className="text-lg text-slate-600">You are being redirected to your Brand Panel.</p>
+            <p className="text-lg text-slate-600">You are being redirected...</p>
             <p className="text-sm text-slate-500 mt-2">Logged in as {user.email}</p>
           </div>
           <button
@@ -194,50 +178,6 @@ const PortalLogin: React.FC = () => {
                     id="name"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="brandName" className="block text-sm font-medium text-slate-700 mb-2">Brand Name</label>
-                  <input
-                    type="text"
-                    id="brandName"
-                    value={brandName}
-                    onChange={(e) => setBrandName(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="address" className="block text-sm font-medium text-slate-700 mb-2">Address</label>
-                  <input
-                    type="text"
-                    id="address"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="mobile" className="block text-sm font-medium text-slate-700 mb-2">Mobile Number</label>
-                  <input
-                    type="tel"
-                    id="mobile"
-                    value={mobile}
-                    onChange={(e) => setMobile(e.target.value)}
-                    required
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="ownerName" className="block text-sm font-medium text-slate-700 mb-2">Owner Name</label>
-                  <input
-                    type="text"
-                    id="ownerName"
-                    value={ownerName}
-                    onChange={(e) => setOwnerName(e.target.value)}
                     required
                     className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
                   />

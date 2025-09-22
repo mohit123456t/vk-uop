@@ -1,47 +1,75 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import authService, { UserProfile } from '../../services/authService';
 
-const ProfileView = () => (
-    <div className="space-y-8 max-w-4xl mx-auto">
-        <div>
-            <h1 className="text-2xl font-bold text-slate-900">Your Profile</h1>
-            <p className="text-slate-600">Manage your portfolio, skills, and account security.</p>
-        </div>
+const ProfileView = () => {
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [loading, setLoading] = useState(true);
 
-        <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                <h3 className="font-bold text-lg text-slate-800 mb-4">Name</h3>
-                <input type="text" defaultValue="Rahul K." className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900" />
+    useEffect(() => {
+        // Subscribe to auth state changes to keep the profile synced
+        const unsubscribe = authService.onAuthStateChange((state) => {
+            setUserProfile(state.userProfile);
+            setLoading(state.isLoading);
+        });
+
+        // Cleanup subscription on component unmount
+        return () => unsubscribe();
+    }, []);
+
+    const formatRole = (role: string | undefined) => {
+        if (!role) return '';
+        return role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    if (loading) {
+        return (
+            <div className="flex flex-col justify-center items-center h-screen w-full">
+                <div className="animate-spin rounded-full h-24 w-24 border-b-4 border-slate-900"></div>
+                <p className="text-center mt-6 text-xl font-semibold text-slate-700">Loading Profile...</p>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                <h3 className="font-bold text-lg text-slate-800 mb-4">ID Number</h3>
-                <input type="text" defaultValue="SWP-00123" className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900" readOnly />
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                <h3 className="font-bold text-lg text-slate-800 mb-4">Email</h3>
-                <input type="email" defaultValue="rahul.k@example.com" className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900" />
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                <h3 className="font-bold text-lg text-slate-800 mb-4">Phone</h3>
-                <input type="tel" defaultValue="+91 98765 43210" className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900" />
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                <h3 className="font-bold text-lg text-slate-800 mb-4">Settings</h3>
-                <div className="space-y-2">
-                    <label className="flex items-center">
-                        <input type="checkbox" defaultChecked className="mr-2" />
-                        <span className="text-sm">Notifications</span>
-                    </label>
-                    <label className="flex items-center">
-                        <input type="checkbox" className="mr-2" />
-                        <span className="text-sm">Dark Mode</span>
-                    </label>
+        );
+    }
+
+    if (!userProfile) {
+        return <p className="text-center text-red-500 text-xl p-8">Could not load user profile. Please try logging in again.</p>;
+    }
+
+    return (
+        <div className="p-8 bg-gray-50 min-h-screen">
+            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-4xl mx-auto">
+                <div className="flex items-center space-x-6 mb-8">
+                    <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-4xl font-bold">
+                        {userProfile.name?.charAt(0) || 'U'}
+                    </div>
+                    <div>
+                        <h1 className="text-4xl font-extrabold text-gray-800">{userProfile.name}</h1>
+                        <p className="text-xl text-gray-500">{userProfile.email}</p>
+                        <p className="text-lg text-indigo-600 font-semibold mt-1 bg-indigo-100 px-3 py-1 rounded-full inline-block">
+                            {formatRole(userProfile.role)}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="border-t border-gray-200 pt-8">
+                    <h2 className="text-2xl font-bold text-gray-700 mb-4">Account Details</h2>
+                    <div className="space-y-4">
+                        <div className="bg-slate-50 p-4 rounded-lg">
+                            <p className="text-sm text-slate-500 font-medium">User ID</p>
+                            <p className="text-slate-800 font-mono text-sm">#{userProfile.uid.substring(0, 6)}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-lg">
+                            <p className="text-sm text-slate-500 font-medium">Member Since</p>
+                            <p className="text-slate-800">{new Date(userProfile.createdAt).toLocaleDateString()}</p>
+                        </div>
+                         <div className="bg-slate-50 p-4 rounded-lg">
+                            <p className="text-sm text-slate-500 font-medium">Last Login</p>
+                            <p className="text-slate-800">{new Date(userProfile.lastLoginAt).toLocaleString()}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 flex items-end">
-                <button type="submit" className="w-full bg-slate-900 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition-colors">Save Changes</button>
-            </div>
-        </form>
-    </div>
-);
+        </div>
+    );
+};
 
 export default ProfileView;
