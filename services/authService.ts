@@ -19,7 +19,7 @@ import {
     where,
     getDocs
 } from 'firebase/firestore';
-import { auth, firestore } from './firebase';
+import { auth, db } from './firebase';
 
 export interface UserProfile {
     uid: string;
@@ -56,7 +56,7 @@ const toISOStringSafe = (dateValue: any): string => {
 
 const getOrCreateUserProfile = async (user: User): Promise<UserProfile | null> => {
     if (!user) return null;
-    const userDocRef = doc(firestore, 'users', user.uid);
+    const userDocRef = doc(db, 'users', user.uid);
     try {
         const userDocSnap = await getDoc(userDocRef);
         if (userDocSnap.exists()) {
@@ -116,7 +116,7 @@ const authService = {
     },
 
     async findUserByEmail(email: string): Promise<UserProfile | null> {
-        const usersRef = collection(firestore, 'users');
+        const usersRef = collection(db, 'users');
         const q = query(usersRef, where("email", "==", email));
         const querySnapshot = await getDocs(q);
         if (querySnapshot.empty) return null;
@@ -151,12 +151,12 @@ const authService = {
             userProfileData.brandId = Math.floor(100000 + Math.random() * 900000).toString();
         }
 
-        await setDoc(doc(firestore, 'users', user.uid), userProfileData);
+        await setDoc(doc(db, 'users', user.uid), userProfileData);
         return user.uid;
     },
 
     async updateUserProfile(userId: string, dataToUpdate: Partial<UserProfile>): Promise<void> {
-        const userDocRef = doc(firestore, 'users', userId);
+        const userDocRef = doc(db, 'users', userId);
         await updateDoc(userDocRef, dataToUpdate);
     },
 

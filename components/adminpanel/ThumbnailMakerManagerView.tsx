@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { firestore } from '../../services/firebase';
+import { db } from '../../services/firebase';
 import { collection, getDocs } from 'firebase/firestore';
 
 interface ThumbnailMaker {
@@ -19,7 +19,7 @@ const ThumbnailMakerManagerView = () => {
     useEffect(() => {
         const fetchThumbnailMakers = async () => {
             setLoading(true);
-            const querySnapshot = await getDocs(collection(firestore, "users"));
+            const querySnapshot = await getDocs(collection(db, "users"));
             const makers: ThumbnailMaker[] = [];
             querySnapshot.forEach((doc) => {
                 if (doc.data().role === 'thumbnail-maker') {
