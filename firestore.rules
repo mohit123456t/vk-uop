@@ -1,9 +1,62 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Helper function to check if a user is an admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper function to check if the user is the owner of a document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Rules for the 'users' collection
+    match /users/{userId} {
+      // 1. CREATE: Any authenticated user can create their own user profile.
+      allow create: if request.auth != null;
+
+      // 2. READ: 
+      //    - Admins can read any user profile.
+      //    - Authenticated users can read their own profile.
+      allow read: if isAdmin() || isOwner(userId);
+
+      // 3. UPDATE:
+      //    - Admins can update any user profile.
+      //    - Authenticated users can update their own profile.
+      allow update: if isAdmin() || isOwner(userId);
+
+      // 4. DELETE: Only admins can delete user profiles (for safety).
+      allow delete: if isAdmin();
+    }
+
+    // Rules for the 'campaigns' collection
+    match /campaigns/{campaignId} {
+      // 1. CREATE: 
+      //    - Any authenticated user can create a campaign.
+      //    - The campaign data must include a 'brandId' that matches the user's brandId.
+      allow create: if request.auth != null && request.resource.data.brandId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brandId;
+
+      // 2. READ:
+      //    - Admins can read any campaign.
+      //    - Users with the 'brand' role can read campaigns that belong to their brand.
+      allow read: if isAdmin() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'brand' && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.brandId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brandId);
+
+      // 3. UPDATE:
+      //    - Admins can update any campaign.
+      //    - 'brand' role users can only update campaigns belonging to their brand.
+      allow update: if isAdmin() || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'brand' && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.brandId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.brandId);
+
+      // 4. DELETE: Only admins can delete campaigns.
+      allow delete: if isAdmin();
+    }
+
+    // Default rule: Deny all other read/write operations on all other collections.
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if false;
     }
   }
 }

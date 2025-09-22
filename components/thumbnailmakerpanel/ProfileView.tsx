@@ -39,10 +39,10 @@ const ProfileView = () => {
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-4xl mx-auto">
                 <div className="flex items-center space-x-6 mb-8">
                     <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-4xl font-bold">
-                        {userProfile.name?.charAt(0) || 'U'}
+                        {userProfile.name?.toUpperCase().charAt(0) || 'U'}
                     </div>
                     <div>
-                        <h1 className="text-4xl font-extrabold text-gray-800">{userProfile.name}</h1>
+                        <h1 className="text-4xl font-extrabold text-gray-800">{userProfile.name?.toUpperCase()}</h1>
                         <p className="text-xl text-gray-500">{userProfile.email}</p>
                         <p className="text-lg text-indigo-600 font-semibold mt-1 bg-indigo-100 px-3 py-1 rounded-full inline-block">
                             {formatRole(userProfile.role)}
@@ -55,7 +55,7 @@ const ProfileView = () => {
                     <div className="space-y-4">
                         <div className="bg-slate-50 p-4 rounded-lg">
                             <p className="text-sm text-slate-500 font-medium">User ID</p>
-                            <p className="text-slate-800 font-mono text-sm">#{userProfile.uid.substring(0, 6)}</p>
+                            <p className="text-slate-800 font-mono text-sm">{'TM' + userProfile.uid.slice(-4)}</p>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-lg">
                             <p className="text-sm text-slate-500 font-medium">Member Since</p>

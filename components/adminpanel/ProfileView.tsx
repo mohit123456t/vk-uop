@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import authService, { UserProfile } from '../../services/authService';
 
@@ -6,19 +7,21 @@ const ProfileView = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Subscribe to auth state changes to keep the profile synced
         const unsubscribe = authService.onAuthStateChange((state) => {
             setUserProfile(state.userProfile);
             setLoading(state.isLoading);
         });
-
-        // Cleanup subscription on component unmount
         return () => unsubscribe();
     }, []);
 
     const formatRole = (role: string | undefined) => {
         if (!role) return '';
         return role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    const getAdminId = (uid: string | undefined) => {
+        if (!uid) return '';
+        return `AD${uid.slice(-4)}`.toUpperCase();
     }
 
     if (loading) {
@@ -39,7 +42,7 @@ const ProfileView = () => {
             <div className="bg-white rounded-2xl shadow-xl p-8 max-w-4xl mx-auto">
                 <div className="flex items-center space-x-6 mb-8">
                     <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-4xl font-bold">
-                        {userProfile.name?.charAt(0) || 'U'}
+                        {userProfile.name?.charAt(0).toUpperCase() || 'U'}
                     </div>
                     <div>
                         <h1 className="text-4xl font-extrabold text-gray-800">{userProfile.name}</h1>
@@ -51,19 +54,27 @@ const ProfileView = () => {
                 </div>
 
                 <div className="border-t border-gray-200 pt-8">
-                    <h2 className="text-2xl font-bold text-gray-700 mb-4">Account Details</h2>
-                    <div className="space-y-4">
-                        <div className="bg-slate-50 p-4 rounded-lg">
+                    <h2 className="text-2xl font-bold text-gray-700 mb-6">Account Details</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div className="bg-slate-50 p-6 rounded-lg">
+                            <p className="text-sm text-slate-500 font-medium">Admin ID</p>
+                            <p className="text-slate-800 font-mono text-2xl font-bold tracking-wider">{getAdminId(userProfile.uid)}</p>
+                        </div>
+                        
+                        <div className="bg-slate-50 p-6 rounded-lg">
                             <p className="text-sm text-slate-500 font-medium">User ID</p>
-                            <p className="text-slate-800 font-mono text-sm">#{userProfile.uid.substring(0, 6)}</p>
+                            <p className="text-slate-800 font-mono text-sm break-all">{userProfile.uid}</p>
                         </div>
-                        <div className="bg-slate-50 p-4 rounded-lg">
+                        
+                        <div className="bg-slate-50 p-6 rounded-lg">
                             <p className="text-sm text-slate-500 font-medium">Member Since</p>
-                            <p className="text-slate-800">{new Date(userProfile.createdAt).toLocaleDateString()}</p>
+                            <p className="text-slate-800 text-lg">{new Date(userProfile.createdAt).toLocaleDateString()}</p>
                         </div>
-                         <div className="bg-slate-50 p-4 rounded-lg">
+                        
+                         <div className="bg-slate-50 p-6 rounded-lg">
                             <p className="text-sm text-slate-500 font-medium">Last Login</p>
-                            <p className="text-slate-800">{new Date(userProfile.lastLoginAt).toLocaleString()}</p>
+                            <p className="text-slate-800 text-lg">{new Date(userProfile.lastLoginAt).toLocaleString()}</p>
                         </div>
                     </div>
                 </div>

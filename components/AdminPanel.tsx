@@ -2,11 +2,12 @@
 
 import SettingsView from './adminpanel/SettingsView';
 import ProfileView from './adminpanel/ProfileView';
- import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { ICONS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
+import authService from '../services/authService'; // Added authService
 
 import DashboardView from './adminpanel/DashboardView';
 import CampaignManagerView from './adminpanel/CampaignManagerView';
@@ -17,8 +18,6 @@ import FinanceView from './adminpanel/FinanceView';
 
 import CommunicationView from './adminpanel/CommunicationView';
 import CampaignApprovalView from './adminpanel/CampaignApprovalView';
-// Removed QualityControlView import
-// import QualityControlView from './adminpanel/QualityControlView';
 
 const NavItem = (props) => {
     const { icon, label, active, onClick } = props;
@@ -53,6 +52,19 @@ const NavItem = (props) => {
 
 const AdminPanel = ({ onNavigate }) => {
     const [activeView, setActiveView] = useState('dashboard');
+    const navigate = useNavigate(); // Added useNavigate hook
+
+    // Logout handler function
+    const handleLogout = async () => {
+        try {
+            await authService.signOut(); // Calling the signOut method from authService
+            navigate('/login'); // Redirecting to login page after successful logout
+        } catch (error) {
+            console.error("Failed to log out:", error);
+            // Optionally: show an error message to the user
+            alert('Logout failed. Please try again.');
+        }
+    };
     
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: ICONS.layout },
@@ -62,12 +74,7 @@ const AdminPanel = ({ onNavigate }) => {
         { id: 'users', label: 'User Management', icon: ICONS.usersGroup },
         { id: 'finance', label: 'Finance', icon: ICONS.wallet },
         { id: 'communication', label: 'Communication', icon: ICONS.bell },
-        // Removed Quality Control from navigation and view
-        // { id: 'quality', label: 'Quality Control', icon: ICONS.shieldCheck },
-        // Removed super_admin from here as it is now a separate route
     ];
-
-
 
     const renderView = () => {
         switch (activeView) {
@@ -77,8 +84,6 @@ const AdminPanel = ({ onNavigate }) => {
             case 'users': return <UserManagementView />;
             case 'finance': return <FinanceView />;
             case 'communication': return <CommunicationView />;
-            // Removed Quality Control view
-            // case 'quality': return <QualityControlView />;
             case 'dashboard':
             default:
                 return <DashboardView onViewChange={setActiveView} />;
@@ -129,7 +134,7 @@ const AdminPanel = ({ onNavigate }) => {
                     <motion.button
                         whileHover={{ scale: 1.02, x: 5 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => onNavigate('landing')}
+                        onClick={handleLogout} // Updated onClick to use handleLogout
                         className="flex items-center w-full text-left px-4 py-3 text-sm font-medium rounded-xl text-slate-300 hover:bg-red-600/20 hover:text-red-300 mt-4 transition-all duration-200 hover:shadow-md"
                     >
                         <motion.span
