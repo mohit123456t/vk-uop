@@ -1,71 +1,28 @@
-import React, { useState } from 'react';
-import { ICONS } from '../../constants';
 
-const tasks = [
-    {
-        id: 'V015',
-        campaign: 'Summer Glow',
-        deadline: 'In 2 days',
-        status: 'In-Progress',
-        details: 'Edit makeup tutorial video with transitions and effects. Add engaging intro, smooth transitions between product demos, and call-to-action overlay.',
-        assigned: '2024-01-08',
-        progress: 60,
-        daysToComplete: 2,
-        assets: ['/img/makeup-tutorial-raw.mp4', '/img/product-shots.jpg'],
-        instructions: 'Complete editing and upload final video to submission portal.'
-    },
-    {
-        id: 'V014',
-        campaign: 'Monsoon Sale',
-        deadline: 'In 4 days',
-        status: 'Pending Footage',
-        details: 'Waiting for raw footage from uploader. Once received, create promotional video highlighting monsoon sale products.',
-        assigned: '2024-01-06',
-        progress: 0,
-        daysToComplete: 4,
-        assets: [],
-        instructions: 'Wait for footage, then edit and submit completed video.'
-    },
-    {
-        id: 'V012',
-        campaign: 'Summer Glow',
-        deadline: 'Yesterday',
-        status: 'Submitted',
-        details: 'Beauty product demo video edited and submitted for approval.',
-        assigned: '2024-01-05',
-        progress: 100,
-        daysToComplete: 3,
-        assets: ['/img/beauty-demo-final.mp4'],
-        instructions: 'Video submitted, awaiting approval feedback.'
-    },
-    {
-        id: 'V011',
-        campaign: 'Old Campaign',
-        deadline: '2 days ago',
-        status: 'Approved',
-        details: 'Product showcase video with voiceover completed successfully.',
-        assigned: '2024-01-03',
-        progress: 100,
-        daysToComplete: 5,
-        assets: ['/img/product-showcase-approved.mp4'],
-        instructions: 'Task completed and approved.'
-    },
-];
+import React, { useState, useEffect } from 'react';
+import { ICONS } from '../../constants';
+import { collection, getDocs, query, where, doc, updateDoc } from 'firebase/firestore';
+import { firestore as db, storage } from '../../services/firebase';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import authService from '../../services/authService';
 
 const StatusBadge = ({ status }) => {
     const statusClasses = {
-        "Pending Footage": "bg-slate-200 text-slate-800",
+        "Pending": "bg-gray-200 text-gray-800",
         "In-Progress": "bg-blue-100 text-blue-800",
         "Submitted": "bg-yellow-100 text-yellow-800",
         "Approved": "bg-green-100 text-green-800",
+        "Completed": "bg-green-100 text-green-800",
+        "Needs-Revision": "bg-red-100 text-red-800",
     };
-    return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusClasses[status]}`}>{status}</span>;
+    return <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusClasses[status] || 'bg-gray-200'}`}>{status}</span>;
 };
 
-const TaskDetailsPage = ({ task, isOpen, onClose }) => {
+const TaskDetailsModal = ({ task, isOpen, onClose, onTaskUpdate }) => {
     const [videoUrl, setVideoUrl] = useState('');
     const [uploadedFile, setUploadedFile] = useState(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
 
     if (!isOpen || !task) return null;
 
@@ -76,163 +33,126 @@ const TaskDetailsPage = ({ task, isOpen, onClose }) => {
         }
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
         if (!videoUrl && !uploadedFile) {
-            alert('Please provide either a video URL or upload a file');
+            setError('Please provide either a video URL or upload a file.');
             return;
         }
         setIsSubmitting(true);
-        // Simulate submission
-        setTimeout(() => {
-            setIsSubmitting(false);
+        setError('');
+
+        try {
+            let submissionUrl = videoUrl;
+            if (uploadedFile) {
+                const fileRef = ref(storage, `submissions/${task.id}/${uploadedFile.name}`);
+                const snapshot = await uploadBytes(fileRef, uploadedFile);
+                submissionUrl = await getDownloadURL(snapshot.ref);
+            }
+
+            const taskDocRef = doc(db, 'video_edit_tasks', task.id);
+            await updateDoc(taskDocRef, {
+                status: 'Submitted',
+                submissionUrl: submissionUrl,
+                submittedAt: new Date().toISOString(),
+            });
+            
+            onTaskUpdate(task.id, { 
+                status: 'Submitted', 
+                submissionUrl: submissionUrl,
+                submittedAt: new Date().toISOString(),
+            });
             alert('Video submitted successfully!');
             onClose();
-        }, 2000);
+        } catch (err) {
+            console.error("Submission error: ", err);
+            setError('Failed to submit video. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
-        <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
-            <div className="min-h-screen">
-                <div className="bg-slate-50 border-b border-slate-200">
-                    <div className="max-w-4xl mx-auto px-6 py-4">
-                        <div className="flex justify-between items-center">
-                            <div>
-                                <h1 className="text-3xl font-bold text-slate-900">{task.id} - {task.campaign}</h1>
-                                <p className="text-slate-600 mt-1">Task Details & Information</p>
-                            </div>
-                            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="p-6 border-b">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <h2 className="text-2xl font-bold text-slate-800">{task.reelId}</h2>
+                            <p className="text-slate-500">{task.campaignName}</p>
                         </div>
+                        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-3xl">&times;</button>
                     </div>
                 </div>
 
-                <div className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                        <h3 className="text-xl font-semibold text-slate-800 mb-4">Task Information</h3>
-                        <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium text-slate-600">Status:</span>
-                                <StatusBadge status={task.status} />
-                            </div>
-                            <div>
-                                <span className="text-sm font-medium text-slate-600">Deadline:</span>
-                                <p className={`font-semibold mt-1 text-lg ${task.deadline === 'In 2 days' ? 'text-red-600' : 'text-slate-800'}`}>
-                                    {task.deadline}
-                                </p>
-                            </div>
-                            <div>
-                                <span className="text-sm font-medium text-slate-600">Days to Complete:</span>
-                                <p className={`font-semibold mt-1 text-lg ${task.daysToComplete <= 2 ? 'text-red-600' : 'text-slate-800'}`}>
-                                    {task.daysToComplete} days
-                                </p>
-                            </div>
-                            <div>
-                                <span className="text-sm font-medium text-slate-600">Assigned Date:</span>
-                                <p className="text-slate-800 mt-1 text-lg">{task.assigned}</p>
-                            </div>
+                <div className="p-6 space-y-6">
+                     <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 p-4 rounded-lg">
+                            <label className="text-sm text-slate-500">Status</label>
+                            <p><StatusBadge status={task.status} /></p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-lg">
+                            <label className="text-sm text-slate-500">Deadline</label>
+                            <p className="font-semibold text-red-600">{task.deadline ? new Date(task.deadline).toLocaleDateString() : 'N/A'}</p>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                        <h3 className="text-xl font-semibold text-slate-800 mb-4">Task Description</h3>
-                        <p className="text-slate-700 leading-relaxed text-lg">{task.details}</p>
+                    <div>
+                        <h3 className="font-semibold mb-2">Instructions</h3>
+                        <p className="text-slate-600 bg-slate-50 p-4 rounded-lg">{task.instructions || 'No instructions provided.'}</p>
                     </div>
 
-                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                        <h3 className="text-xl font-semibold text-slate-800 mb-4">Instructions</h3>
-                        <p className="text-slate-700 leading-relaxed text-lg">{task.instructions}</p>
-                    </div>
-
-                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                        <h3 className="text-xl font-semibold text-slate-800 mb-4">Video Assets</h3>
-                        {task.assets.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {task.assets && task.assets.length > 0 && (
+                        <div>
+                            <h3 className="font-semibold mb-2">Assets</h3>
+                            <div className="space-y-2">
                                 {task.assets.map((asset, index) => (
-                                    <div key={index} className="flex items-center gap-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                                        <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center">
-                                            <span className="text-slate-500 text-xl">
-                                                {asset.includes('.mp4') ? '🎥' : '📷'}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <p className="text-lg font-medium text-slate-800">{asset.split('/').pop()}</p>
-                                            <p className="text-sm text-slate-500">
-                                                {asset.includes('.mp4') ? 'Video File' : 'Image File'}
-                                            </p>
-                                        </div>
-                                    </div>
+                                    <a href={asset.url} target="_blank" rel="noopener noreferrer" key={index} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                                        <ICONS.link className="w-5 h-5 text-blue-500" />
+                                        <span className="text-blue-600 font-medium truncate">{asset.name || 'Downloadable Asset'}</span>
+                                    </a>
                                 ))}
                             </div>
-                        ) : (
-                            <p className="text-slate-500 italic text-lg">No assets available yet</p>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
-                    {task.status === 'In-Progress' && (
-                        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                            <h3 className="text-xl font-semibold text-slate-800 mb-4">Upload Completed Video</h3>
+                    {(task.status === 'In-Progress' || task.status === 'Needs-Revision') && (
+                        <div className="pt-4 border-t">
+                            <h3 className="text-xl font-semibold text-slate-800 mb-4">Submit Your Work</h3>
+                            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
                             <div className="space-y-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Video URL (Optional)
-                                    </label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Video URL</label>
                                     <input
                                         type="url"
                                         value={videoUrl}
                                         onChange={(e) => setVideoUrl(e.target.value)}
                                         placeholder="https://example.com/video.mp4"
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                     />
                                 </div>
-
+                                <div className="text-center my-2 text-sm text-slate-500">OR</div>
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Or Upload Video File
-                                    </label>
-                                    <div className="flex items-center gap-4">
-                                        <input
-                                            type="file"
-                                            accept="video/*"
-                                            onChange={handleFileUpload}
-                                            className="hidden"
-                                            id="video-upload"
-                                        />
-                                        <label
-                                            htmlFor="video-upload"
-                                            className="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 cursor-pointer transition-colors"
-                                        >
-                                            {ICONS.upload} Choose File
-                                        </label>
-                                        {uploadedFile && (
-                                            <span className="text-sm text-slate-600">
-                                                {uploadedFile.name}
-                                            </span>
-                                        )}
-                                    </div>
+                                     <label className="block text-sm font-medium text-slate-700 mb-1">Upload File</label>
+                                    <input
+                                        type="file"
+                                        accept="video/*,image/*"
+                                        onChange={handleFileUpload}
+                                        className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+                                    {uploadedFile && <span className="text-sm text-slate-600 mt-2 block">Selected: {uploadedFile.name}</span>}
                                 </div>
 
-                                <div className="flex gap-4 pt-4">
+                                <div className="text-right pt-4">
                                     <button
                                         onClick={handleSubmit}
-                                        disabled={isSubmitting || (!videoUrl && !uploadedFile)}
-                                        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-slate-400 disabled:cursor-not-allowed transition-colors text-lg font-medium"
+                                        disabled={isSubmitting}
+                                        className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-slate-400 transition-colors font-medium"
                                     >
-                                        {isSubmitting ? 'Submitting...' : 'Submit Video'}
+                                        {isSubmitting ? 'Submitting...' : 'Submit Task'}
                                     </button>
                                 </div>
                             </div>
                         </div>
                     )}
-
-                    <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-                        <div className="flex gap-4">
-                            <button
-                                onClick={onClose}
-                                className="px-6 py-3 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors text-lg font-medium"
-                            >
-                                ← Back to Tasks
-                            </button>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -240,8 +160,44 @@ const TaskDetailsPage = ({ task, isOpen, onClose }) => {
 };
 
 const AssignedTasks = () => {
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
     const [selectedTask, setSelectedTask] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+
+    useEffect(() => {
+        const unsubscribe = authService.onAuthStateChange((authState) => {
+            if (authState.isAuthenticated && authState.userProfile) {
+                fetchTasks(authState.userProfile.email);
+            } else {
+                setLoading(false);
+                setError('User not authenticated.');
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
+    const fetchTasks = async (userEmail) => {
+        setLoading(true);
+        try {
+            const q = query(collection(db, 'video_edit_tasks'), where('assignedTo', '==', userEmail));
+            const querySnapshot = await getDocs(q);
+            const tasksData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            setTasks(tasksData);
+        } catch (err) {
+            console.error("Error fetching tasks: ", err);
+            setError('Failed to fetch tasks.');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    const handleTaskUpdate = (taskId, updatedData) => {
+        setTasks(prevTasks => prevTasks.map(task => 
+            task.id === taskId ? { ...task, ...updatedData } : task
+        ));
+    };
 
     const handleViewDetails = (task) => {
         setSelectedTask(task);
@@ -253,43 +209,53 @@ const AssignedTasks = () => {
         setSelectedTask(null);
     };
 
+    if (loading) return <div className="text-center p-10">Loading tasks...</div>;
+    if (error) return <div className="text-center p-10 text-red-500">{error}</div>;
+
     return (
         <>
-            <TaskDetailsPage
+            <TaskDetailsModal
                 task={selectedTask}
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
+                onTaskUpdate={handleTaskUpdate}
             />
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 animate-fadeIn">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-900 mb-1">Assigned Tasks</h2>
+                    <h2 className="text-3xl font-bold text-slate-900 mb-1">Assigned Tasks</h2>
                     <p className="text-slate-600">Manage and track all your assigned video editing tasks.</p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {tasks.map(task => (
-                        <div key={task.id} className="bg-white rounded-lg shadow-sm border border-slate-200/80 p-4 hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between mb-3">
-                                <h3 className="text-lg font-bold text-slate-900">{task.id}</h3>
-                                <StatusBadge status={task.status} />
-                            </div>
-                            <div className="space-y-2">
-                                <div>
-                                    <span className="text-sm text-slate-500">Deadline:</span>
-                                    <p className={`text-sm font-semibold ${task.deadline === 'In 2 days' ? 'text-red-600' : 'text-slate-800'}`}>
-                                        {task.deadline}
-                                    </p>
+                {tasks.length === 0 ? (
+                     <div className="text-center py-12">
+                        <div className="text-slate-400 mb-4"><ICONS.clipboard className="h-12 w-12 mx-auto" /></div>
+                        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Tasks Found</h3>
+                        <p className="text-slate-600">You have no assigned tasks at the moment.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {tasks.map(task => (
+                            <div key={task.id} className="bg-white rounded-lg shadow-sm border border-slate-200/80 p-5 hover:shadow-lg transition-shadow">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-md font-bold text-slate-800 truncate pr-4">{task.reelId}</h3>
+                                    <StatusBadge status={task.status} />
                                 </div>
-                                <button
-                                    onClick={() => handleViewDetails(task)}
-                                    className="w-full mt-3 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                                >
-                                    View Details
-                                </button>
+                                <div className="space-y-3">
+                                    <div>
+                                        <p className="text-sm text-slate-500">Campaign: {task.campaignName}</p>
+                                        <p className="text-sm text-slate-500">Deadline: <span className="font-medium text-red-500">{task.deadline ? new Date(task.deadline).toLocaleDateString() : 'N/A'}</span></p>
+                                    </div>
+                                    <button
+                                        onClick={() => handleViewDetails(task)}
+                                        className="w-full mt-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+                                    >
+                                        View & Submit
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </>
     );

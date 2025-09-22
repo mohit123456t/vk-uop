@@ -32,6 +32,11 @@ export interface UserProfile {
   createdAt: string;
   lastLoginAt: string;
   isActive: boolean;
+  completedTasks?: number;
+  pendingTasks?: number;
+  totalEarnings?: number;
+  salaryDue?: number;
+  activity?: any[];
 }
 
 export type UserRole =
@@ -106,11 +111,9 @@ class AuthService {
     this.authStateListeners.forEach(listener => listener(authState));
   }
 
-  // Subscribe to auth state changes
   onAuthStateChange(callback: (authState: AuthState) => void): () => void {
     this.authStateListeners.push(callback);
 
-    // Return unsubscribe function
     return () => {
       const index = this.authStateListeners.indexOf(callback);
       if (index > -1) {
@@ -119,7 +122,6 @@ class AuthService {
     };
   }
 
-  // Login with email and password
   async loginWithEmail(email: string, password: string): Promise<UserProfile> {
     try {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -131,6 +133,10 @@ class AuthService {
         throw new Error('User profile not found. Please contact administrator.');
       }
 
+      if (!this.userProfile.isActive) {
+        throw new Error('This account has been deactivated. Please contact administrator.');
+      }
+
       this.notifyAuthStateListeners();
       return this.userProfile;
     } catch (error: any) {
@@ -139,7 +145,17 @@ class AuthService {
     }
   }
 
-  // Register new user
+  async findUserByEmail(email: string): Promise<UserProfile | null> {
+    const usersRef = collection(firestore, 'users');
+    const q = query(usersRef, where("email", "==", email));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        return { id: userDoc.id, ...userDoc.data() } as UserProfile;
+    }
+    return null;
+  }
+
   async registerUser(
     email: string,
     password: string,
@@ -154,13 +170,15 @@ class AuthService {
         uid: user.uid,
         createdAt: new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
-        isActive: true
+        isActive: true,
+        completedTasks: 0,
+        pendingTasks: 0,
+        totalEarnings: 0,
+        salaryDue: 0,
+        activity: [],
       };
 
-      // Save to Firestore
       await setDoc(doc(firestore, 'users', user.uid), userProfile);
-
-      // Save to Realtime Database
       await set(ref(database, 'users/' + user.uid), userProfile);
 
       this.userProfile = userProfile;
@@ -169,42 +187,50 @@ class AuthService {
       return userProfile;
     } catch (error: any) {
       console.error('Registration error:', error);
+      if (error.code === 'auth/email-already-in-use') {
+        throw new Error('An account with this email already exists in Authentication. Please check authentication records.');
+      }
       throw new Error(this.getAuthErrorMessage(error.code));
     }
   }
 
-  // Login with Google OAuth
   async loginWithGoogle(): Promise<UserProfile> {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user profile exists
       let userProfile = await this.getUserProfile(user.uid);
 
       if (!userProfile) {
-        // Create profile for new Google user
         const displayName = user.displayName || user.email?.split('@')[0] || 'User';
         userProfile = {
           uid: user.uid,
           email: user.email!,
           name: displayName,
-          role: 'brand', // Default role for Google sign-in
+          role: 'brand',
           createdAt: new Date().toISOString(),
           lastLoginAt: new Date().toISOString(),
-          isActive: true
+          isActive: true,
+          completedTasks: 0,
+          pendingTasks: 0,
+          totalEarnings: 0,
+          salaryDue: 0,
+          activity: [],
         };
 
         await setDoc(doc(firestore, 'users', user.uid), userProfile);
         await set(ref(database, 'users/' + user.uid), userProfile);
       } else {
-        // Update last login
         await updateDoc(doc(firestore, 'users', user.uid), {
           lastLoginAt: new Date().toISOString()
         });
       }
 
+      if (!userProfile.isActive) {
+        throw new Error('This account has been deactivated. Please contact administrator.');
+      }
+      
       this.userProfile = userProfile;
       this.notifyAuthStateListeners();
 
@@ -215,7 +241,6 @@ class AuthService {
     }
   }
 
-  // Get user profile
   async getUserProfile(uid: string): Promise<UserProfile | null> {
     try {
       const userDoc = await getDoc(doc(firestore, 'users', uid));
@@ -226,12 +251,17 @@ class AuthService {
     }
   }
 
-  // Update user profile
   async updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
     try {
-      await updateDoc(doc(firestore, 'users', uid), updates);
-      await set(ref(database, 'users/' + uid), updates);
-
+      const userDocRef = doc(firestore, 'users', uid);
+      await updateDoc(userDocRef, updates);
+  
+      const dbRef = ref(database, 'users/' + uid);
+      const snapshot = await get(dbRef);
+      if (snapshot.exists()) {
+        await update(dbRef, updates); 
+      }
+      
       if (this.userProfile && this.userProfile.uid === uid) {
         this.userProfile = { ...this.userProfile, ...updates };
         this.notifyAuthStateListeners();
@@ -242,7 +272,6 @@ class AuthService {
     }
   }
 
-  // Check if user has required role
   hasRole(requiredRole: UserRole | UserRole[]): boolean {
     if (!this.userProfile) return false;
 
@@ -253,7 +282,6 @@ class AuthService {
     return this.userProfile.role === requiredRole;
   }
 
-  // Logout
   async logout(): Promise<void> {
     try {
       await signOut(auth);
@@ -266,17 +294,14 @@ class AuthService {
     }
   }
 
-  // Get current user
   getCurrentUser(): User | null {
     return this.currentUser;
   }
 
-  // Get current user profile
   getCurrentUserProfile(): UserProfile | null {
     return this.userProfile;
   }
 
-  // Get auth error message
   private getAuthErrorMessage(errorCode: string): string {
     switch (errorCode) {
       case 'auth/user-not-found':
@@ -298,17 +323,14 @@ class AuthService {
     }
   }
 
-  // Check if user is admin
   isAdmin(): boolean {
     return this.hasRole(['admin', 'super_admin']);
   }
 
-  // Check if user is super admin
   isSuperAdmin(): boolean {
     return this.hasRole('super_admin');
   }
 }
 
-// Create singleton instance
 const authService = new AuthService();
 export default authService;

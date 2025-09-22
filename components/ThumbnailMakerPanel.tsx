@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { ICONS } from '@/constants.tsx';
 import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { firestore as db } from '../services/firebase';
 import authService from '../services/authService';
 
 const NavItem = ({ icon, label, active, onClick, ...props }) => (

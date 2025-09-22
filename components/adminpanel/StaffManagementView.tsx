@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { firestore } from '../../services/firebase';
 import { collection, getDocs, doc, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { ICONS } from '../../constants';
+import authService from '../../services/authService';
 
 // --- CHILD COMPONENTS --- //
 const StaffCard = ({ name, count, icon, onClick }) => {
@@ -45,6 +46,7 @@ const StaffManagementView = () => {
     const [newPassword, setNewPassword] = useState('');
 
     const staffCategoriesList = [
+        { name: 'Admins', icon: ICONS.briefcase, role: 'admin' },
         { name: 'Editors', icon: ICONS.edit, role: 'video-editor' },
         { name: 'Script Writers', icon: ICONS.fileText, role: 'script-writer' },
         { name: 'Thumbnail Makers', icon: ICONS.image, role: 'thumbnail-maker' },
@@ -86,41 +88,56 @@ const StaffManagementView = () => {
     const handleAddStaff = async () => {
         const selectedRole = staffCategoriesList.find(c => c.name === newStaff.role);
         if (!selectedRole) { alert('Invalid role selected'); return; }
-
+    
         try {
-            const docRef = await addDoc(collection(firestore, "users"), {
-                name: newStaff.name,
-                email: newStaff.email,
-                role: selectedRole.role,
-                completedTasks: 0,
-                pendingTasks: 0,
-                totalEarnings: 0,
-                salaryDue: 0,
-                activity: [],
-                status: 'Active'
-            });
-
-            const newStaffMember = { id: docRef.id, ...newStaff, role: selectedRole.role, tasksCompleted: 0, tasksPending: 0, totalEarnings: 0, salaryDue: 0, activity: [] };
-            setAllStaff(prev => ({ ...prev, [newStaff.role]: [...(prev[newStaff.role] || []), newStaffMember] }));
-
+            const existingUser = await authService.findUserByEmail(newStaff.email);
+    
+            if (existingUser) {
+                if (existingUser.isActive === false) {
+                    // If user is inactive, reactivate and update their role
+                    await authService.updateUserProfile(existingUser.id, { isActive: true, role: selectedRole.role });
+                    alert('Staff member has been reactivated and their role updated.');
+                } else {
+                    // If user is already active, just show a message
+                    alert('A staff member with this email already exists and is active.');
+                }
+            } else {
+                // If no user exists, create a new one
+                const userProfile = await authService.registerUser(newStaff.email, newStaff.password, {
+                    name: newStaff.name,
+                    role: selectedRole.role,
+                });
+    
+                const newStaffMember = { ...userProfile, tasksCompleted: 0, tasksPending: 0, totalEarnings: 0, salaryDue: 0, activity: [] };
+                setAllStaff(prev => ({ ...prev, [newStaff.role]: [...(prev[newStaff.role] || []), newStaffMember] }));
+    
+                alert('Staff member added successfully!');
+            }
+    
             setNewStaff({ name: '', email: '', password: '', role: '' });
             setIsAddModalOpen(false);
-            alert('Staff member added successfully!');
+    
         } catch (error) {
-            console.error("Error adding document: ", error);
-            alert(`Error adding staff: ${error.message}`);
+            console.error("Error adding or updating document: ", error);
+            alert(`Error: ${error.message}`);
         }
     };
 
-    const handleRemoveStaff = async (category, staffId) => {
-        if(confirm('Are you sure you want to remove this staff member?')){
+    const handleDeactivateStaff = async (category, staffId) => {
+        if(confirm('Are you sure you want to deactivate this staff member?')){
             try {
-                await deleteDoc(doc(firestore, "users", staffId));
-                setAllStaff(prev => ({ ...prev, [category]: prev[category].filter(s => s.id !== staffId) }));
-                alert('Staff member removed.');
+                await authService.updateUserProfile(staffId, { isActive: false });
+                // Optionally, update the local state to reflect the change
+                setAllStaff(prev => ({
+                    ...prev,
+                    [category]: prev[category].map(staff => 
+                        staff.id === staffId ? { ...staff, isActive: false } : staff
+                    )
+                }));
+                alert('Staff member deactivated.');
             } catch (error) {
-                console.error("Error removing document: ", error);
-                alert(`Error removing staff: ${error.message}`);
+                console.error("Error deactivating staff member: ", error);
+                alert(`Error deactivating staff: ${error.message}`);
             }
         }
     };
@@ -131,11 +148,22 @@ const StaffManagementView = () => {
         setIsEditModalOpen(true);
     };
 
-    const handleUpdatePassword = () => {
-        if (!newPassword || newPassword.length < 6) { alert('Password must be at least 6 characters long.'); return; }
-        alert(`Password for ${editingStaff.name} has been updated.`);
-        setIsEditModalOpen(false);
-        setEditingStaff(null);
+    const handleUpdatePassword = async () => {
+        if (!newPassword || newPassword.length < 6) {
+            alert('Password must be at least 6 characters long.');
+            return;
+        }
+        try {
+            // This is not a secure way to update passwords. 
+            // You should use Firebase Admin SDK for this on the backend.
+            // This is a placeholder for the actual implementation.
+            await authService.updatePassword(editingStaff.id, newPassword);
+            alert(`Password for ${editingStaff.name} has been updated.`);
+            setIsEditModalOpen(false);
+            setEditingStaff(null);
+        } catch (error) {
+            alert(`Error updating password: ${error.message}`);
+        }
     };
 
     const handleSalaryWithdraw = async (staff) => {
@@ -227,15 +255,16 @@ const StaffManagementView = () => {
                 <div className="bg-white rounded-xl shadow-lg p-6">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left">
-                            <thead className="border-b-2 border-gray-200"><tr><th className="p-4 text-lg font-bold text-gray-600">Name</th><th className="p-4 text-lg font-bold text-gray-600">Email</th><th className="p-4 text-lg font-bold text-gray-600 text-right">Actions</th></tr></thead>
+                            <thead className="border-b-2 border-gray-200"><tr><th className="p-4 text-lg font-bold text-gray-600">Name</th><th className="p-4 text-lg font-bold text-gray-600">Email</th><th className="p-4 text-lg font-bold text-gray-600">Status</th><th className="p-4 text-lg font-bold text-gray-600 text-right">Actions</th></tr></thead>
                             <tbody>
                                 {staffList.map(staff => (
                                     <tr key={staff.id} className="border-b border-gray-100">
                                         <td onClick={() => setViewingStaffProfile(staff)} className="p-4 font-medium text-gray-800 cursor-pointer hover:text-indigo-600">{staff.name}</td>
                                         <td className="p-4 text-gray-600">{staff.email}</td>
+                                        <td className="p-4 text-gray-600">{staff.isActive === false ? 'Deactivated' : 'Active'}</td>
                                         <td className="p-4 text-right">
                                             <button onClick={() => handleOpenEditModal(staff)} className="text-indigo-500 hover:text-indigo-700 font-semibold mr-4">Edit</button>
-                                            <button onClick={() => handleRemoveStaff(selectedCategory, staff.id)} className="text-red-500 hover:text-red-700 font-semibold">Remove</button>
+                                            <button onClick={() => handleDeactivateStaff(selectedCategory, staff.id)} className="text-red-500 hover:text-red-700 font-semibold">Deactivate</button>
                                         </td>
                                     </tr>
                                 ))}
@@ -285,7 +314,7 @@ const StaffManagementView = () => {
                 <form onSubmit={e => { e.preventDefault(); handleUpdatePassword(); }}>
                     <input type="password" placeholder="Enter new password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-3 border border-gray-300 rounded-lg" required />
                     <div className="flex justify-end space-x-4 mt-8">
-                        <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                        <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
                         <button type="submit" className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700">Update Password</button>
                     </div>
                 </form>

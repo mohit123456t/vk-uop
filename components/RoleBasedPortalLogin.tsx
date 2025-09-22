@@ -44,13 +44,13 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
       case 'uploader':
         navigate('/uploader');
         break;
-      case 'script_writer':
+      case 'script-writer':
         navigate('/script-writer');
         break;
-      case 'video_editor':
+      case 'video-editor':
         navigate('/video-editor');
         break;
-      case 'thumbnail_maker':
+      case 'thumbnail-maker':
         navigate('/thumbnail-maker');
         break;
       case 'admin':
@@ -60,7 +60,8 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
         navigate('/super-admin');
         break;
       default:
-        navigate('/brand');
+        setError(`Unknown user role: ${userProfile.role}. Please contact administrator.`);
+        navigate('/');
     }
   };
 
