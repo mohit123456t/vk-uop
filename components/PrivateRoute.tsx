@@ -1,6 +1,7 @@
-import React, { ReactElement, useEffect, useState } from 'react';
+import React, { ReactElement } from 'react';
 import { Navigate } from 'react-router-dom';
-import authService, { AuthState } from '../services/authService';
+import authService from '../services/authService';
+import Loader from './Loader';
 
 interface PrivateRouteProps {
   children: ReactElement;
@@ -8,39 +9,18 @@ interface PrivateRouteProps {
 }
 
 const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, requiredRole }) => {
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    userProfile: null,
-    isLoading: true,
-    isAuthenticated: false
-  });
+  const { isAuthenticated, isLoading, userProfile } = authService.useAuth();
 
-  useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((newAuthState) => {
-      setAuthState(newAuthState);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  if (authState.isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
+  if (isLoading) {
+    return <Loader />;
   }
 
-  if (!authState.isAuthenticated) {
-    return <Navigate to="/role-login" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
-  if (requiredRole && authState.userProfile && authState.userProfile.role !== requiredRole) {
-    // Special case for Super Admin
-    if (authState.userProfile.role === 'super_admin' && requiredRole === 'super_admin') {
-      return children;
-    }
-    return <Navigate to="/role-login" replace />;
+  if (requiredRole && userProfile?.role !== requiredRole) {
+    return <Navigate to="/portal" replace />;
   }
 
   return children;
