@@ -75,10 +75,10 @@ const ThumbnailMakerManagerView = () => {
                                      <p className="text-gray-600 whitespace-no-wrap text-xs">{maker.email}</p>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <p className="text-gray-900 whitespace-no-wrap">${maker.totalEarnings.toFixed(2)}</p>
+                                    <p className="text-gray-900 whitespace-no-wrap">${(maker.totalEarnings || 0).toFixed(2)}</p>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <p className="text-gray-900 whitespace-no-wrap">{maker.completedTasks}</p>
+                                    <p className="text-gray-900 whitespace-no-wrap">{maker.completedTasks || 0}</p>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                     <span className={`relative inline-block px-3 py-1 font-semibold text-green-900 leading-tight`}>
@@ -107,8 +107,8 @@ const ThumbnailMakerManagerView = () => {
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-slate-700">Work Summary</h3>
-                                <p className="text-slate-600 mt-2"><strong>Total Earnings:</strong> ${selectedMaker.totalEarnings.toFixed(2)}</p>
-                                <p className="text-slate-600"><strong>Completed Tasks:</strong> {selectedMaker.completedTasks}</p>
+                                <p className="text-slate-600 mt-2"><strong>Total Earnings:</strong> ${(selectedMaker.totalEarnings || 0).toFixed(2)}</p>
+                                <p className="text-slate-600"><strong>Completed Tasks:</strong> {selectedMaker.completedTasks || 0}</p>
                                 <p className="text-slate-600"><strong>Status:</strong> <span className={`font-semibold ${selectedMaker.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{selectedMaker.status}</span></p>
                             </div>
                         </div>

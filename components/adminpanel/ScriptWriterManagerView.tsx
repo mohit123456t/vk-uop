@@ -75,10 +75,10 @@ const ScriptWriterManagerView = () => {
                                      <p className="text-gray-600 whitespace-no-wrap text-xs">{writer.email}</p>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <p className="text-gray-900 whitespace-no-wrap">${writer.totalEarnings.toFixed(2)}</p>
+                                    <p className="text-gray-900 whitespace-no-wrap">${(writer.totalEarnings || 0).toFixed(2)}</p>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
-                                    <p className="text-gray-900 whitespace-no-wrap">{writer.completedTasks}</p>
+                                    <p className="text-gray-900 whitespace-no-wrap">{writer.completedTasks || 0}</p>
                                 </td>
                                 <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">
                                     <span className={`relative inline-block px-3 py-1 font-semibold text-green-900 leading-tight`}>
@@ -107,8 +107,8 @@ const ScriptWriterManagerView = () => {
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-slate-700">Work Summary</h3>
-                                <p className="text-slate-600 mt-2"><strong>Total Earnings:</strong> ${selectedWriter.totalEarnings.toFixed(2)}</p>
-                                <p className="text-slate-600"><strong>Completed Tasks:</strong> {selectedWriter.completedTasks}</p>
+                                <p className="text-slate-600 mt-2"><strong>Total Earnings:</strong> ${(selectedWriter.totalEarnings || 0).toFixed(2)}</p>
+                                <p className="text-slate-600"><strong>Completed Tasks:</strong> {selectedWriter.completedTasks || 0}</p>
                                 <p className="text-slate-600"><strong>Status:</strong> <span className={`font-semibold ${selectedWriter.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>{selectedWriter.status}</span></p>
                             </div>
                         </div>

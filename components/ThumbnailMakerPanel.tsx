@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { ICONS } from '@/constants.tsx';
 import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
-import { firestore as db } from '../services/firebase';
-import authService from '../services/authService';
+ import { firestore as db } from '../services/firebase';
+ import authService from '../services/authService';
 import ProfileView from './thumbnailmakerpanel/ProfileView';
 import EarningsView from './thumbnailmakerpanel/EarningsView';
 import CommunicationView from './thumbnailmakerpanel/CommunicationView';
@@ -71,8 +71,14 @@ const ThumbnailMakerPanel = () => {
     useEffect(() => {
         const unsubscribe = authService.onAuthStateChange((authState) => {
             if (authState.isAuthenticated && authState.userProfile) {
-                setUserProfile(authState.userProfile);
-                fetchTasks(authState.userProfile.email);
+                 if (authState.userProfile.status !== 'Active') {
+                    authService.signOut();
+                    navigate('/login');
+                    alert('Your account has been deactivated. Please contact an administrator.');
+                } else {
+                    setUserProfile(authState.userProfile);
+                    fetchTasks(authState.userProfile.email);
+                }
             } else {
                 navigate('/login');
             }

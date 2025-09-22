@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardView from './scriptwriterpanel/DashboardView';
 import TasksView from './scriptwriterpanel/TasksView';
 import CollaborationView from './scriptwriterpanel/CollaborationView';
-import AIAssistanceView from './scriptwriterpanel/AIAssistanceView';
-import ContentSubmissionView from './scriptwriterpanel/ContentSubmissionView';
 import PaymentsView from './scriptwriterpanel/PaymentsView';
 import ProfileView from './scriptwriterpanel/ProfileView';
 import { ICONS } from '../constants';
+import authService from '../services/authService';
 
 const NavItem = ({ icon, label, active, onClick, ...props }) => (
     <button {...props} onClick={onClick} className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${active ? 'bg-slate-700/50 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
@@ -16,7 +16,37 @@ const NavItem = ({ icon, label, active, onClick, ...props }) => (
 );
 
 const ScriptWriterPanel = () => {
+    const navigate = useNavigate();
     const [activeView, setActiveView] = useState('dashboard');
+    const [userProfile, setUserProfile] = useState<any>(null);
+
+    const handleLogout = async () => {
+        try {
+            await authService.signOut();
+            navigate('/login');
+        } catch (error) {
+            console.error("Failed to log out:", error);
+            alert('Logout failed. Please try again.');
+        }
+    };
+
+    useEffect(() => {
+        const unsubscribe = authService.onAuthStateChange((authState) => {
+            if (authState.isAuthenticated && authState.userProfile) {
+                if (authState.userProfile.status !== 'Active') {
+                    authService.signOut();
+                    navigate('/login');
+                    alert('Your account has been deactivated. Please contact an administrator.');
+                } else {
+                    setUserProfile(authState.userProfile);
+                }
+            } else {
+                navigate('/login');
+            }
+        });
+
+        return () => unsubscribe();
+    }, [navigate]);
 
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: ICONS.layout },
@@ -34,8 +64,6 @@ const ScriptWriterPanel = () => {
         switch (activeView) {
             case 'tasks':
                 return <TasksView />;
-            case 'content_submission':
-                return <ContentSubmissionView />;
             case 'collaboration':
                 return <CollaborationView />;
             case 'payments':
@@ -46,7 +74,7 @@ const ScriptWriterPanel = () => {
                     <p className="text-slate-600">Performance metrics will be displayed here.</p>
                 </div>;
             case 'profile':
-                return <ProfileView />;
+                return <ProfileView userProfile={userProfile} />;
             case 'dashboard':
             default:
                 return <DashboardView onEditTask={() => setActiveView('tasks')} />;
@@ -68,7 +96,7 @@ const ScriptWriterPanel = () => {
                     {secondaryNavItems.map(item => (
                         <NavItem key={item.id} icon={item.icon} label={item.label} active={activeView === item.id} onClick={() => setActiveView(item.id)} />
                     ))}
-                    <button onClick={() => window.location.href = '/'} className="flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white mt-2">
+                    <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white mt-2">
                         <span className="mr-3">{ICONS.logout}</span>
                         Logout
                     </button>
@@ -77,7 +105,7 @@ const ScriptWriterPanel = () => {
             <div className="flex-1 flex flex-col overflow-hidden">
                 <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
                     <h1 className="text-xl font-bold text-slate-900 capitalize">{activeView.replace('_', ' ')}</h1>
-                    <div className="font-semibold">Rahul K.</div>
+                    <div className="font-semibold">{userProfile?.name?.toUpperCase()}</div>
                 </header>
                 <main className="flex-1 overflow-y-auto bg-slate-100 p-8">{renderView()}</main>
             </div>
