@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ICONS } from '../../constants';
 import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { firestore as db } from '../../services/firebase';
+import { db } from '../../services/firebase';
 import authService from '../../services/authService';
 
 const StatCard = ({ title, value, icon, subtitle }) => (
@@ -24,7 +24,6 @@ const DashboardView = () => {
         urgentReels: 0,
         instagramAccounts: 0
     });
-    const [loading, setLoading] = useState(true);
     const [userProfile, setUserProfile] = useState<any>(null);
 
     useEffect(() => {
@@ -40,8 +39,6 @@ const DashboardView = () => {
 
     const fetchDashboardData = async (userEmail: string) => {
         try {
-            setLoading(true);
-
             // Fetch upload tasks assigned to current user
             const tasksQuery = query(
                 collection(db, 'upload_tasks'),
@@ -89,8 +86,6 @@ const DashboardView = () => {
 
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -103,22 +98,12 @@ const DashboardView = () => {
                 <p className="text-slate-600">Here's your comprehensive task overview and performance details.</p>
             </div>
 
-            {loading ? (
-                <div className="text-center py-8">
-                    <div className="text-slate-400 mb-4">
-                        <span className="text-4xl">⏳</span>
-                    </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">Loading Dashboard...</h3>
-                    <p className="text-slate-600">Please wait while we fetch your data</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <StatCard title="Pending Reels" value={stats.pendingReels.toString()} subtitle="Awaiting upload" icon={ICONS.clipboard} />
-                    <StatCard title="Assigned Campaigns" value={stats.assignedCampaigns.toString()} subtitle="Active campaigns" icon={ICONS.checkCircle} />
-                    <StatCard title="Urgent Reels" value={stats.urgentReels.toString()} subtitle="High priority" icon={ICONS.bell} />
-                    <StatCard title="Instagram Accounts" value={stats.instagramAccounts.toString()} subtitle="Connected accounts" icon={ICONS.instagram} />
-                </div>
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StatCard title="Pending Reels" value={stats.pendingReels.toString()} subtitle="Awaiting upload" icon={ICONS.clipboard} />
+                <StatCard title="Assigned Campaigns" value={stats.assignedCampaigns.toString()} subtitle="Active campaigns" icon={ICONS.checkCircle} />
+                <StatCard title="Urgent Reels" value={stats.urgentReels.toString()} subtitle="High priority" icon={ICONS.bell} />
+                <StatCard title="Instagram Accounts" value={stats.instagramAccounts.toString()} subtitle="Connected accounts" icon={ICONS.instagram} />
+            </div>
         </div>
     );
 };

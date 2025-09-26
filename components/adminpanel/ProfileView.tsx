@@ -1,81 +1,285 @@
-
 import React, { useState, useEffect } from 'react';
-import authService, { UserProfile } from '../../services/authService';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import authService from '../../services/authService';
+import { ICONS } from '../../constants';
 
 const ProfileView = () => {
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [profile, setProfile] = useState({
+        id: '',
+        name: '',
+        email: '',
+        profilePicture: '',
+        role: 'Super Admin',
+        joinDate: '',
+        phone: '',
+        department: ''
+    });
+    const [isEditing, setIsEditing] = useState(false);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = authService.onAuthStateChange((state) => {
-            setUserProfile(state.userProfile);
-            setLoading(state.isLoading);
-        });
-        return () => unsubscribe();
+        fetchProfile();
     }, []);
 
-    const formatRole = (role: string | undefined) => {
-        if (!role) return '';
-        return role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
+    const fetchProfile = async () => {
+        try {
+            const currentUser = authService.getCurrentUser();
+            const userProfile = authService.getCurrentUserProfile();
 
-    const getAdminId = (uid: string | undefined) => {
-        if (!uid) return '';
-        return `AD${uid.slice(-4)}`.toUpperCase();
-    }
+            if (userProfile) {
+                // Use the user profile from authService
+                setProfile({
+                    id: userProfile.uid,
+                    name: userProfile.name || 'Super Admin',
+                    email: userProfile.email || '',
+                    profilePicture: currentUser?.photoURL || '',
+                    role: userProfile.role || 'Super Admin',
+                    joinDate: userProfile.createdAt ? new Date(userProfile.createdAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                    phone: userProfile.mobileNumber || '',
+                    department: 'Administration'
+                });
+            } else {
+                // Fallback to adminProfiles collection for backward compatibility
+                if (currentUser) {
+                    const profileDoc = await getDoc(doc(db, 'adminProfiles', currentUser.uid));
+                    if (profileDoc.exists()) {
+                        setProfile({ ...profileDoc.data(), id: currentUser.uid });
+                    } else {
+                        // Create default profile
+                        const defaultProfile = {
+                            id: currentUser.uid,
+                            name: currentUser.displayName || 'Super Admin',
+                            email: currentUser.email || '',
+                            profilePicture: currentUser.photoURL || '',
+                            role: 'Super Admin',
+                            joinDate: new Date().toISOString().split('T')[0],
+                            phone: '',
+                            department: 'Administration'
+                        };
+                        await updateDoc(doc(db, 'adminProfiles', currentUser.uid), defaultProfile);
+                        setProfile(defaultProfile);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching profile:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateProfile = async () => {
+        try {
+            const currentUser = authService.getCurrentUser();
+            if (currentUser) {
+                // Update Firebase Auth user email if changed
+                if (currentUser.email !== profile.email) {
+                    // Note: Email update requires re-authentication in production
+                    console.log('Email update requires re-authentication');
+                }
+
+                // Update the user profile in the main users collection
+                await authService.updateUserProfile(currentUser.uid, {
+                    name: profile.name,
+                    email: profile.email,
+                    mobileNumber: profile.phone
+                });
+
+                // Also update adminProfiles collection for backward compatibility
+                await updateDoc(doc(db, 'adminProfiles', currentUser.uid), {
+                    name: profile.name,
+                    email: profile.email,
+                    phone: profile.phone,
+                    department: profile.department
+                });
+
+                // Update local state immediately
+                setProfile(prev => ({
+                    ...prev,
+                    name: profile.name,
+                    email: profile.email,
+                    phone: profile.phone,
+                    department: profile.department
+                }));
+
+                setIsEditing(false);
+                alert('Profile updated successfully!');
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            alert('Error updating profile: ' + error.message);
+        }
+    };
+
+    const handleInputChange = (field, value) => {
+        setProfile(prev => ({ ...prev, [field]: value }));
+    };
+
+    // Format UID for admin panels (ADM + 3 digits)
+    const formatAdminUID = (uid) => {
+        if (uid && uid.length > 3) {
+            // Extract last 3 characters and convert to number
+            const last3 = uid.slice(-3);
+            const num = parseInt(last3, 16) % 1000; // Convert to 3-digit number
+            return `ADM${num.toString().padStart(3, '0')}`;
+        }
+        return 'ADM001'; // Default fallback
+    };
 
     if (loading) {
         return (
-            <div className="flex flex-col justify-center items-center h-screen w-full">
-                <div className="animate-spin rounded-full h-24 w-24 border-b-4 border-slate-900"></div>
-                <p className="text-center mt-6 text-xl font-semibold text-slate-700">Loading Profile...</p>
+            <div className="flex justify-center items-center h-64">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
             </div>
         );
     }
 
-    if (!userProfile) {
-        return <p className="text-center text-red-500 text-xl p-8">Could not load user profile. Please try logging in again.</p>;
-    }
-
     return (
-        <div className="p-8 bg-gray-50 min-h-screen">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-4xl mx-auto">
-                <div className="flex items-center space-x-6 mb-8">
-                    <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-4xl font-bold">
-                        {userProfile.name?.charAt(0).toUpperCase() || 'U'}
-                    </div>
-                    <div>
-                        <h1 className="text-4xl font-extrabold text-gray-800">{userProfile.name}</h1>
-                        <p className="text-xl text-gray-500">{userProfile.email}</p>
-                        <p className="text-lg text-indigo-600 font-semibold mt-1 bg-indigo-100 px-3 py-1 rounded-full inline-block">
-                            {formatRole(userProfile.role)}
-                        </p>
+        <div className="max-w-4xl mx-auto">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">Admin Profile</h1>
+                <button
+                    onClick={() => setIsEditing(!isEditing)}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                    {isEditing ? 'Cancel' : 'Edit Profile'}
+                </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Profile Picture & Basic Info */}
+                <div className="lg:col-span-1">
+                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-8 text-center">
+                        <div className="relative mb-6">
+                            <div className="w-32 h-32 mx-auto rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center text-white text-4xl font-bold shadow-lg">
+                                {profile.profilePicture ? (
+                                    <img src={profile.profilePicture} alt="Profile" className="w-full h-full rounded-full object-cover" />
+                                ) : (
+                                    profile.name.charAt(0).toUpperCase()
+                                )}
+                            </div>
+                            {isEditing && (
+                                <button className="absolute bottom-0 right-1/2 transform translate-x-16 w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white hover:bg-blue-600 transition-colors">
+                                    <span className="text-sm">📷</span>
+                                </button>
+                            )}
+                        </div>
+
+                        <h2 className="text-2xl font-bold text-slate-900 mb-2">{profile.name}</h2>
+                        <p className="text-slate-600 mb-4">{profile.role}</p>
+
+                        <div className="space-y-3 text-left">
+                            <div className="flex items-center p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
+                                <span className="text-blue-600 mr-3">📧</span>
+                                <div>
+                                    <p className="text-xs text-slate-500">Email</p>
+                                    <p className="text-sm font-medium text-slate-900">{profile.email}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl">
+                                <span className="text-green-600 mr-3">📱</span>
+                                <div>
+                                    <p className="text-xs text-slate-500">Phone</p>
+                                    <p className="text-sm font-medium text-slate-900">{profile.phone || 'Not provided'}</p>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center p-3 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl">
+                                <span className="text-orange-600 mr-3">📅</span>
+                                <div>
+                                    <p className="text-xs text-slate-500">Join Date</p>
+                                    <p className="text-sm font-medium text-slate-900">{profile.joinDate}</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-8">
-                    <h2 className="text-2xl font-bold text-gray-700 mb-6">Account Details</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        
-                        <div className="bg-slate-50 p-6 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">Admin ID</p>
-                            <p className="text-slate-800 font-mono text-2xl font-bold tracking-wider">{getAdminId(userProfile.uid)}</p>
+                {/* Profile Details */}
+                <div className="lg:col-span-2">
+                    <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-8">
+                        <h3 className="text-xl font-bold text-slate-900 mb-6">Profile Information</h3>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Full Name</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={profile.name}
+                                        onChange={(e) => handleInputChange('name', e.target.value)}
+                                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                ) : (
+                                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-slate-900">{profile.name}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                                {isEditing ? (
+                                    <input
+                                        type="email"
+                                        value={profile.email}
+                                        onChange={(e) => handleInputChange('email', e.target.value)}
+                                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                ) : (
+                                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-slate-900">{profile.email}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Phone Number</label>
+                                {isEditing ? (
+                                    <input
+                                        type="tel"
+                                        value={profile.phone}
+                                        onChange={(e) => handleInputChange('phone', e.target.value)}
+                                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                ) : (
+                                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-slate-900">{profile.phone || 'Not provided'}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Department</label>
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={profile.department}
+                                        onChange={(e) => handleInputChange('department', e.target.value)}
+                                        className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                    />
+                                ) : (
+                                    <p className="px-4 py-3 bg-slate-50 rounded-xl text-slate-900">{profile.department}</p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Profile ID</label>
+                                <p className="px-4 py-3 bg-slate-50 rounded-xl text-slate-500 font-mono text-sm">{formatAdminUID(profile.id)}</p>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-2">Role</label>
+                                <p className="px-4 py-3 bg-slate-50 rounded-xl text-slate-900">{profile.role}</p>
+                            </div>
                         </div>
-                        
-                        <div className="bg-slate-50 p-6 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">User ID</p>
-                            <p className="text-slate-800 font-mono text-sm break-all">{userProfile.uid}</p>
-                        </div>
-                        
-                        <div className="bg-slate-50 p-6 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">Member Since</p>
-                            <p className="text-slate-800 text-lg">{new Date(userProfile.createdAt).toLocaleDateString()}</p>
-                        </div>
-                        
-                         <div className="bg-slate-50 p-6 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">Last Login</p>
-                            <p className="text-slate-800 text-lg">{new Date(userProfile.lastLoginAt).toLocaleString()}</p>
-                        </div>
+
+                        {isEditing && (
+                            <div className="mt-8 flex justify-end">
+                                <button
+                                    onClick={handleUpdateProfile}
+                                    className="px-8 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                                >
+                                    Save Changes
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

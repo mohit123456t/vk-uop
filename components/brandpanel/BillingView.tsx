@@ -1,70 +1,67 @@
 import React, { useState, useEffect } from 'react';
 import { collection, addDoc, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
-import { firestore } from '../../services/firebase';
+import { db } from '../../services/firebase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import AddFundsPanel from './AddFundsPanel';
 import WithdrawPanel from './WithdrawPanel';
 
 const BillingView = ({ user }) => {
+    // State management
     const [showAddFunds, setShowAddFunds] = useState(false);
     const [showWithdraw, setShowWithdraw] = useState(false);
     const [invoices, setInvoices] = useState([]);
     const [currentBalance, setCurrentBalance] = useState(0);
     const [monthlyBudget, setMonthlyBudget] = useState(0);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState(null);
 
+    // Fetch billing data
     useEffect(() => {
         const fetchBillingData = async () => {
-            if (user && user.uid) {
-                try {
-                    // Fetch balance and budget only
-                    const billingDoc = doc(firestore, `users/${user.uid}/billing/main`);
-                    const billingSnap = await getDoc(billingDoc);
-                    if (billingSnap.exists()) {
-                        setCurrentBalance(billingSnap.data().balance || 0);
-                        setMonthlyBudget(billingSnap.data().monthlyBudget || 0);
-                    } else {
-                        setCurrentBalance(0);
-                        setMonthlyBudget(0);
-                    }
+            if (!user || !user.uid) return;
 
-                    // Fetch invoices
-                    const invoicesCol = collection(firestore, `users/${user.uid}/billing/main/invoices`);
-                    const invoicesSnap = await getDocs(invoicesCol);
-                    setInvoices(invoicesSnap.docs.map(doc => doc.data()));
-                } catch (err) {
-                    console.error('Error fetching billing data:', err);
+            setLoading(true);
+            setError(null);
+
+            try {
+                // Fetch balance and budget only
+                const billingDoc = doc(db, `users/${user.uid}/billing/main`);
+                const billingSnap = await getDoc(billingDoc);
+                if (billingSnap.exists()) {
+                    setCurrentBalance(billingSnap.data().balance || 0);
+                    setMonthlyBudget(billingSnap.data().monthlyBudget || 0);
+                } else {
+                    setCurrentBalance(0);
+                    setMonthlyBudget(0);
                 }
+
+                // Fetch invoices
+                const invoicesCol = collection(db, `users/${user.uid}/billing/main/invoices`);
+                const invoicesSnap = await getDocs(invoicesCol);
+                setInvoices(invoicesSnap.docs.map(doc => doc.data()));
+            } catch (err) {
+                console.error('Error fetching billing data:', err);
+                setError('Failed to load billing data. Please try again.');
+            } finally {
+                setLoading(false);
             }
         };
+
         fetchBillingData();
     }, [user]);
 
-    // Remove totalSpend and budgetUsed calculations
+    // Handle add funds and withdraw panels
+    const handleAddFunds = () => {
+        setShowAddFunds(prev => !prev);
+    };
 
-    return (
-        <div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-6">Billing Dashboard</h1>
+    const handleWithdraw = () => {
+        setShowWithdraw(prev => !prev);
+    };
 
-            {/* Add Funds and Withdraw Buttons at Top */}
-            <div className="flex gap-4 mb-8">
-                <button
-                    onClick={() => setShowAddFunds(prev => !prev)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                    {showAddFunds ? 'Hide Add Funds' : 'Add Funds'}
-                </button>
-                <button
-                    onClick={() => setShowWithdraw(prev => !prev)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                >
-                    {showWithdraw ? 'Hide Withdraw' : 'Withdraw'}
-                </button>
-            </div>
-
-            {showAddFunds && <AddFundsPanel user={user} />}
-            {showWithdraw && <WithdrawPanel user={user} currentBalance={currentBalance} setCurrentBalance={setCurrentBalance} />}
-
-            {/* Key Metrics Cards */}
+    // Render key metrics cards
+    const renderKeyMetrics = () => {
+        return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
                     <div className="flex items-center justify-between">
@@ -89,8 +86,12 @@ const BillingView = ({ user }) => {
                     </div>
                 </div>
             </div>
+        );
+    };
 
-            {/* Invoice History */}
+    // Render invoice history
+    const renderInvoiceHistory = () => {
+        return (
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 mt-8">
                 <h3 className="font-bold text-lg mb-4 text-slate-800">Recent Invoices</h3>
                 <table className="w-full text-sm text-left text-slate-600">
@@ -124,8 +125,51 @@ const BillingView = ({ user }) => {
                     </tbody>
                 </table>
             </div>
+        );
+    };
 
-            // ...existing code...
+    // Render loading or error message
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-gray-500">Loading billing data...</div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-red-500">{error}</div>
+            </div>
+        );
+    }
+
+    return (
+        <div>
+            <h1 className="text-2xl font-bold text-slate-900 mb-6">Billing Dashboard</h1>
+
+            {/* Add Funds and Withdraw Buttons at Top */}
+            <div className="flex gap-4 mb-8">
+                <button
+                    onClick={handleAddFunds}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                    {showAddFunds ? 'Hide Add Funds' : 'Add Funds'}
+                </button>
+                <button
+                    onClick={handleWithdraw}
+                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                >
+                    {showWithdraw ? 'Hide Withdraw' : 'Withdraw'}
+                </button>
+            </div>
+
+            {showAddFunds && <AddFundsPanel user={user} />}
+            {showWithdraw && <WithdrawPanel user={user} currentBalance={currentBalance} setCurrentBalance={setCurrentBalance} />}
+
+            {renderKeyMetrics()}
+            {renderInvoiceHistory()}
         </div>
     );
 };

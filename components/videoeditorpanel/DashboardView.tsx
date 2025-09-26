@@ -1,123 +1,209 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { ICONS } from '../../constants';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { firestore as db } from '../../services/firebase';
+import {
+    collection,
+    getDocs,
+    query,
+    where,
+    orderBy,
+} from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import authService from '../../services/authService';
+import { isSameDay, parseISO } from 'date-fns';
 
-const StatCard = ({ title, value, icon, subtitle = '' }) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 hover:shadow-lg transition-shadow duration-300">
+// 👤 Define User Profile Type
+interface UserProfile {
+    name: string;
+    email: string;
+    // Add other fields if needed
+}
+
+// 🎬 Define Video Task Type
+interface VideoTask {
+    id: string;
+    assignedTo: string;
+    status?: 'pending' | 'completed' | 'rejected';
+    createdAt?: string; // ISO string
+    completedAt?: string; // ISO string
+    // Add other task fields as needed
+}
+
+// 📊 StatCard Component (Reusable)
+const StatCard = ({
+    title,
+    value,
+    icon,
+    subtitle = '',
+    extra = '',
+}: {
+    title: string;
+    value: string;
+    icon: React.ReactNode;
+    subtitle?: string;
+    extra?: string;
+}) => (
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
         <div className="flex justify-between items-start">
             <div>
                 <p className="text-sm text-slate-500 font-medium">{title}</p>
                 <p className="text-3xl font-bold text-slate-800 mt-1">{value}</p>
                 {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
+                {extra && <p className="text-xs text-slate-500 mt-1">{extra}</p>}
             </div>
-            <div className="text-slate-400 p-2 bg-slate-100 rounded-lg">{icon}</div>
+            <div className="text-slate-400">{icon}</div>
         </div>
     </div>
 );
 
+// 🖥️ Main Dashboard Component
 const DashboardView = () => {
     const [stats, setStats] = useState({
         totalAssigned: 0,
         totalCompleted: 0,
-        pendingTasks: 0,
-        completionRate: 0,
+        totalEdited: 0,
+        approvalRate: 0,
         todayAssigned: 0,
         todayCompleted: 0,
+        pendingTasks: 0,
     });
-    const [loading, setLoading] = useState(true);
-    const [userProfile, setUserProfile] = useState<any>(null);
-    const [error, setError] = useState('');
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
+    // 📅 Helper to check if date is today
+    const isToday = (dateString?: string): boolean => {
+        if (!dateString) return false;
+        try {
+            return isSameDay(parseISO(dateString), new Date());
+        } catch {
+            return false;
+        }
+    };
+
+    // 🔄 Fetch Dashboard Data
+    const fetchDashboardData = async (userEmail: string) => {
+        try {
+            // 🔍 Fetch ALL tasks assigned to user (no limit for totals!)
+            const allTasksQuery = query(
+                collection(db, 'video_edit_tasks'),
+                where('assignedTo', '==', userEmail)
+            );
+            const allTasksSnapshot = await getDocs(allTasksQuery);
+            const allTasks = allTasksSnapshot.docs.map(
+                (doc) => ({ id: doc.id, ...doc.data() }) as VideoTask
+            );
+
+            // ✅ Fetch ONLY completed tasks (no limit for accurate count)
+            const completedQuery = query(
+                collection(db, 'video_edit_tasks'),
+                where('assignedTo', '==', userEmail),
+                where('status', '==', 'completed')
+            );
+            const completedSnapshot = await getDocs(completedQuery);
+            const completedTasks = completedSnapshot.docs.map(
+                (doc) => ({ id: doc.id, ...doc.data() }) as VideoTask
+            );
+
+            // 📊 Calculate Stats
+            const totalAssigned = allTasks.length;
+            const totalCompleted = completedTasks.length;
+            const approvalRate =
+                totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
+
+            const todayAssigned = allTasks.filter((task) =>
+                isToday(task.createdAt)
+            ).length;
+            const todayCompleted = completedTasks.filter((task) =>
+                isToday(task.completedAt)
+            ).length;
+
+            setStats({
+                totalAssigned,
+                totalCompleted,
+                totalEdited: totalAssigned + totalCompleted, // or just totalAssigned if "edited" means same as assigned
+                approvalRate,
+                todayAssigned,
+                todayCompleted,
+                pendingTasks: totalAssigned - totalCompleted,
+            });
+
+        } catch (err) {
+            console.error('Error fetching dashboard data:', err);
+        }
+    };
+
+    // 👤 Listen to Auth State
     useEffect(() => {
         const unsubscribe = authService.onAuthStateChange((authState) => {
             if (authState.isAuthenticated && authState.userProfile) {
                 setUserProfile(authState.userProfile);
                 fetchDashboardData(authState.userProfile.email);
             } else {
-                setLoading(false);
-                setError('User not authenticated.');
+                setUserProfile(null);
+                setStats({
+                    totalAssigned: 0,
+                    totalCompleted: 0,
+                    totalEdited: 0,
+                    approvalRate: 0,
+                    todayAssigned: 0,
+                    todayCompleted: 0,
+                    pendingTasks: 0,
+                });
             }
         });
 
         return () => unsubscribe();
     }, []);
 
-    const fetchDashboardData = async (userEmail: string) => {
-        setLoading(true);
-        try {
-            // Query for all tasks assigned to the user
-            const allTasksQuery = query(
-                collection(db, 'video_edit_tasks'),
-                where('assignedTo', '==', userEmail)
-            );
-            const allTasksSnapshot = await getDocs(allTasksQuery);
-            const allTasksData = allTasksSnapshot.docs.map(doc => doc.data());
+    // 💡 Optional: Memoize stats if needed later
+    const memoizedStats = useMemo(() => stats, [stats]);
 
-            // Filter for completed tasks from all tasks
-            const completedTasksData = allTasksData.filter(task => task.status === 'completed');
-
-            const totalAssigned = allTasksData.length;
-            const totalCompleted = completedTasksData.length;
-            const pendingTasks = totalAssigned - totalCompleted;
-            const completionRate = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
-
-            // Get today's date string (YYYY-MM-DD)
-            const today = new Date().toISOString().split('T')[0];
-            
-            const todayAssigned = allTasksData.filter((task: any) => 
-                task.createdAt && typeof task.createdAt === 'string' && task.createdAt.startsWith(today)
-            ).length;
-
-            const todayCompleted = completedTasksData.filter((task: any) => 
-                task.completedAt && typeof task.completedAt === 'string' && task.completedAt.startsWith(today)
-            ).length;
-
-            setStats({
-                totalAssigned,
-                totalCompleted,
-                pendingTasks,
-                completionRate,
-                todayAssigned,
-                todayCompleted,
-            });
-
-        } catch (err) {
-            console.error('Error fetching dashboard data:', err);
-            setError('Failed to fetch dashboard data.');
-        } finally {
-            setLoading(false);
-        }
-    };
-    
-    if (loading) {
-        return <div className="text-center p-10">Loading...</div>;
-    }
-
-    if (error) {
-        return <div className="text-center p-10 text-red-500">{error}</div>;
-    }
-
+    // ✅ Render Dashboard
     return (
-        <div className="space-y-8 animate-fadeIn">
+        <div className="space-y-8">
             <div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-1">
-                    Welcome, {userProfile?.name || 'Editor'}!
+                <h1 className="text-2xl font-bold text-slate-900 mb-1">
+                    Welcome, {userProfile?.name || 'User'}
                 </h1>
-                <p className="text-slate-600">Here's your editing dashboard for today.</p>
+                <p className="text-slate-600">
+                    Here's your comprehensive editing dashboard with task details and performance metrics.
+                </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                <StatCard title="Total Assigned" value={stats.totalAssigned.toString()} icon={ICONS.clipboard} />
-                <StatCard title="Total Completed" value={stats.totalCompleted.toString()} subtitle={`${stats.completionRate}% completion rate`} icon={ICONS.checkCircle} />
-                <StatCard title="Pending Tasks" value={stats.pendingTasks.toString()} icon={ICONS.bell} />
-                <StatCard title="Assigned Today" value={stats.todayAssigned.toString()} icon={ICONS.calendar} />
-                <StatCard title="Completed Today" value={stats.todayCompleted.toString()} icon={ICONS.check} />
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                <StatCard
+                    title="Total Tasks Assigned"
+                    value={memoizedStats.totalAssigned.toString()}
+                    subtitle="Since joining"
+                    icon={ICONS.clipboard}
+                />
+                <StatCard
+                    title="Tasks Completed"
+                    value={memoizedStats.totalCompleted.toString()}
+                    subtitle={`${memoizedStats.approvalRate}% completion rate`}
+                    icon={ICONS.checkCircle}
+                />
+                <StatCard
+                    title="Videos Edited"
+                    value={memoizedStats.totalEdited.toString()}
+                    subtitle="Since joining"
+                    icon={ICONS.scissors}
+                />
 
-            {/* You can add recent activity or other components here */}
+                <StatCard
+                    title="Tasks Assigned Today"
+                    value={memoizedStats.todayAssigned.toString()}
+                    icon={ICONS.clipboard}
+                />
+                <StatCard
+                    title="Tasks Completed Today"
+                    value={memoizedStats.todayCompleted.toString()}
+                    icon={ICONS.checkCircle}
+                />
+                <StatCard
+                    title="Pending Tasks"
+                    value={memoizedStats.pendingTasks.toString()}
+                    icon={ICONS.bell}
+                />
+            </div>
         </div>
     );
 };

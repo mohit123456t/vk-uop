@@ -1,50 +1,50 @@
-import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import PrivateRoute from './components/PrivateRoute';
-import Loader from './components/Loader';
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import LandingPage from './components/LandingPage';
+import BrandPanel from './components/BrandPanel';
+import PortalLogin from './components/PortalLogin';
+import AdminPanel from './components/AdminPanel';
+import SuperAdminPanel from './components/adminpanel/SuperAdminPanel';
+import UploaderPanel from './components/UploaderPanel';
+import ScriptWriterPanel from './components/ScriptWriterPanel';
+import VideoEditorPanel from './components/VideoEditorPanel';
 
-const LandingPage = lazy(() => import('./components/LandingPage'));
-const RoleBasedPortalLogin = lazy(() => import('./components/RoleBasedPortalLogin'));
-const InstagramCallback = lazy(() => import('./components/InstagramCallback'));
-const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
-const TermsOfUse = lazy(() => import('./components/TermsOfUse'));
-const AdminPanel = lazy(() => import('./components/AdminPanel'));
-const BrandPanel = lazy(() => import('./components/BrandPanel'));
-const ThumbnailMakerPanel = lazy(() => import('./components/ThumbnailMakerPanel'));
-const ScriptWriterPanel = lazy(() => import('./components/ScriptWriterPanel'));
-const VideoEditorPanel = lazy(() => import('./components/VideoEditorPanel'));
-const UploaderPanel = lazy(() => import('./components/UploaderPanel'));
+import ThumbnailMakerPanel from './components/ThumbnailMakerPanel';
+import InstagramCallback from './components/InstagramCallback';
+import PrivateRoute from './components/PrivateRoute';
+import RoleBasedPortalLogin from './components/RoleBasedPortalLogin';
+
+const AnimatedBackground = () => (
+    <div className="fixed top-0 left-0 w-full h-full -z-10 overflow-hidden bg-white">
+        <div className="absolute inset-0 bg-grid-slate-100/50 [mask-image:radial-gradient(ellipse_at_center,white_25%,transparent_80%)]"></div>
+        <div className="absolute top-0 -left-1/4 w-[50rem] h-[50rem] bg-slate-200/20 rounded-full filter blur-3xl opacity-20 animate-aurora"></div>
+        <div className="absolute top-0 -right-1/4 w-[50rem] h-[50rem] bg-slate-300/20 rounded-full filter blur-3xl opacity-20 animate-aurora [animation-delay:-15s]"></div>
+        <div className="absolute -bottom-1/2 left-1/4 w-[60rem] h-[60rem] bg-slate-200/10 rounded-full filter blur-3xl opacity-20 animate-aurora [animation-delay:-30s]"></div>
+        <div className="absolute -bottom-1/4 -right-1/4 w-[60rem] h-[60rem] bg-slate-300/10 rounded-full filter blur-3xl opacity-20 animate-aurora [animation-delay:-45s]"></div>
+    </div>
+);
 
 const App: React.FC = () => {
-    return (
-        <Router>
-            <Suspense fallback={<Loader />}>
-                <Routes>
-                    {/* Public Routes */}
-                    <Route path="/" element={<LandingPage />} />
-                    <Route path="/login" element={<RoleBasedPortalLogin />} />
-                    <Route path="/instagram-callback" element={<InstagramCallback />} />
-                    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-                    <Route path="/terms-of-use" element={<TermsOfUse />} />
-
-                    {/* The /portal route now correctly points to the login component,
-                        which will handle the redirection logic itself. */}
-                    <Route path="/portal" element={<RoleBasedPortalLogin />} />
-
-                    {/* Private Role-Based Routes */}
-                    <Route path="/admin" element={<PrivateRoute requiredRole="admin"><AdminPanel /></PrivateRoute>} />
-                    <Route path="/brand" element={<PrivateRoute requiredRole="brand"><BrandPanel /></PrivateRoute>} />
-                    <Route path="/thumbnail" element={<PrivateRoute requiredRole="thumbnail-maker"><ThumbnailMakerPanel /></PrivateRoute>} />
-                    <Route path="/scriptwriter" element={<PrivateRoute requiredRole="script-writer"><ScriptWriterPanel /></PrivateRoute>} />
-                    <Route path="/videoeditor" element={<PrivateRoute requiredRole="video-editor"><VideoEditorPanel /></PrivateRoute>} />
-                    <Route path="/uploader" element={<PrivateRoute requiredRole="uploader"><UploaderPanel /></PrivateRoute>} />
-
-                    {/* Fallback Redirect */}
-                    <Route path="*" element={<Navigate to="/" />} />
-                </Routes>
-            </Suspense>
-        </Router>
-    );
+  return (
+    <Router>
+      <div className="relative min-h-screen">
+        <AnimatedBackground />
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/portal" element={<PortalLogin />} />
+          <Route path="/role-login" element={<RoleBasedPortalLogin />} />
+          <Route path="/brand" element={<BrandPanel onNavigate={() => {}} />} />
+          <Route path="/admin" element={<AdminPanel onNavigate={() => {}} />} />
+          <Route path="/super-admin" element={<SuperAdminPanel />} />
+          <Route path="/uploader" element={<UploaderPanel onNavigate={() => {}} />} />
+          <Route path="/script-writer" element={<ScriptWriterPanel onNavigate={() => {}} />} />
+          <Route path="/video-editor" element={<VideoEditorPanel onNavigate={() => {}} />} />
+          <Route path="/thumbnail-maker" element={<ThumbnailMakerPanel onNavigate={() => {}} />} />
+          <Route path="/instagram-callback" element={<InstagramCallback />} />
+        </Routes>
+      </div>
+    </Router>
+  );
 };
 
 export default App;

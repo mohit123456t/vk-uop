@@ -1,12 +1,12 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const AnalyticsView = ({ campaigns }) => {
+const AnalyticsView = ({ campaigns = [] }) => {
     const chartData = campaigns.map(campaign => ({
         name: campaign.name,
-        views: campaign.views,
-        reelsCount: campaign.reelsCount,
-        engagement: campaign.reels.reduce((sum, reel) => sum + reel.likes, 0),
+        views: campaign.views || 0,
+        reelsCount: campaign.reelsCount || 0,
+        engagement: campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.likes || 0), 0) : 0,
     }));
 
     return (
@@ -44,27 +44,45 @@ const AnalyticsView = ({ campaigns }) => {
                         </tr>
                     </thead>
                     <tbody>
-                        {campaigns.map(campaign => {
-                            const totalEngagement = campaign.reels.reduce((sum, reel) => sum + reel.likes, 0);
-                            return (
-                                <tr key={campaign.id} className="bg-white border-b">
-                                    <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{campaign.name}</th>
-                                    <td className="px-6 py-4">
-                                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                                            campaign.status === 'Active' ? 'bg-green-100 text-green-800' :
-                                            campaign.status === 'Completed' ? 'bg-slate-200 text-slate-800' :
-                                            'bg-yellow-100 text-yellow-800'
-                                        }`}>
-                                            {campaign.status}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">{campaign.views.toLocaleString()}</td>
-                                    <td className="px-6 py-4">{campaign.reelsCount}</td>
-                                    <td className="px-6 py-4">{totalEngagement.toLocaleString()}</td>
-                                    <td className="px-6 py-4">{new Date().toLocaleDateString()}</td>
-                                </tr>
-                            );
-                        })}
+                        {campaigns.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="text-center py-8 text-slate-500">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-4xl mb-2">📈</span>
+                                        <p>No campaign data available</p>
+                                        <p className="text-sm">Create campaigns to see analytics</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : (
+                            campaigns.map(campaign => {
+                                const totalLikes = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.likes || 0), 0) : 0;
+                                const totalComments = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.comments || 0), 0) : 0;
+                                const totalShares = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.shares || 0), 0) : 0;
+                                const totalSaves = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.saves || 0), 0) : 0;
+                                const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
+                                const lastUpdated = campaign.reels && campaign.reels.length > 0 ?
+                                    new Date(Math.max(...campaign.reels.map(r => new Date(r.uploadedAt || Date.now())))).toLocaleDateString() : 'N/A';
+                                return (
+                                    <tr key={campaign.id} className="bg-white border-b">
+                                        <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{campaign.name}</th>
+                                        <td className="px-6 py-4">
+                                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                                                campaign.status === 'Active' ? 'bg-green-100 text-green-800' :
+                                                campaign.status === 'Completed' ? 'bg-slate-200 text-slate-800' :
+                                                'bg-yellow-100 text-yellow-800'
+                                            }`}>
+                                                {campaign.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">{(campaign.views || 0).toLocaleString()}</td>
+                                        <td className="px-6 py-4">{campaign.reelsCount || 0}</td>
+                                        <td className="px-6 py-4">{totalEngagement.toLocaleString()}</td>
+                                        <td className="px-6 py-4">{lastUpdated}</td>
+                                    </tr>
+                                );
+                            })
+                        )}
                     </tbody>
                 </table>
             </div>

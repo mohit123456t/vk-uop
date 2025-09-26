@@ -1,4 +1,4 @@
-import { firestore as db } from '../services/firebase';
+import { db } from './firebase';
 import { collection, addDoc, getDocs, updateDoc, doc, deleteDoc } from 'firebase/firestore';
 
 const INSTAGRAM_ACCOUNTS_COLLECTION = 'instagramAccounts';

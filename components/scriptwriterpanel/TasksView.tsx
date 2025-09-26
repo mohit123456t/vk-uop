@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ICONS } from '../../constants';
 import { collection, getDocs, query, where, orderBy, doc, updateDoc } from 'firebase/firestore';
-import { firestore as db } from '../../services/firebase';
+import { db } from '../../services/firebase';
 
 const mockTasks = [];
 
@@ -146,7 +146,7 @@ const ScriptEditorModal = ({ task, onClose }) => {
     );
 };
 
-const TasksView = () => {
+const TasksView = ({ userProfile }) => {
     const [tasks, setTasks] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeFilter, setActiveFilter] = useState('All');
@@ -156,15 +156,17 @@ const TasksView = () => {
     const filters = ['All', 'Pending', 'In Progress', 'Needs Revision', 'Approved'];
 
     useEffect(() => {
-        fetchTasks();
-    }, []);
+        if (userProfile?.email) {
+            fetchTasks();
+        }
+    }, [userProfile]);
 
     const fetchTasks = async () => {
         try {
             setLoading(true);
             const tasksQuery = query(
                 collection(db, 'script_tasks'),
-                where('assignedTo', '==', 'rahul.k@example.com'), // Replace with actual user email
+                where('assignedTo', '==', userProfile?.email),
                 orderBy('deadline', 'asc')
             );
             const tasksSnapshot = await getDocs(tasksQuery);
@@ -175,6 +177,7 @@ const TasksView = () => {
             setTasks(tasksData);
         } catch (error) {
             console.error('Error fetching tasks:', error);
+            setTasks([]); // Set empty array on error
         } finally {
             setLoading(false);
         }

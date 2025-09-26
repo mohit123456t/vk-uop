@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, updateDoc, query, where } from 'firebase/firestore';
-import { firestore } from '../../services/firebase';
+import { db } from '../../services/firebase';
 import { ICONS } from '../../constants';
 
 const CampaignApprovalView = () => {
@@ -20,7 +20,7 @@ const CampaignApprovalView = () => {
 
     useEffect(() => {
         const fetchPendingCampaigns = async () => {
-            const q = query(collection(firestore, 'campaigns'), where('status', '==', 'Pending Approval'));
+            const q = query(collection(db, 'campaigns'), where('status', '==', 'Pending Approval'));
             const querySnapshot = await getDocs(q);
             const data = [];
             querySnapshot.forEach(doc => data.push({ id: doc.id, ...doc.data() }));
@@ -31,7 +31,7 @@ const CampaignApprovalView = () => {
     }, []);
 
     const handleApprove = async (campaignId) => {
-        const campaignRef = doc(firestore, 'campaigns', campaignId);
+        const campaignRef = doc(db, 'campaigns', campaignId);
         await updateDoc(campaignRef, {
             status: 'Active',
             approvedAt: new Date().toISOString()
@@ -41,7 +41,7 @@ const CampaignApprovalView = () => {
     };
 
     const handleReject = async (campaignId) => {
-        const campaignRef = doc(firestore, 'campaigns', campaignId);
+        const campaignRef = doc(db, 'campaigns', campaignId);
         await updateDoc(campaignRef, {
             status: 'Rejected'
         });
@@ -64,7 +64,7 @@ const CampaignApprovalView = () => {
     };
 
     const handleSaveEdit = async () => {
-        const campaignRef = doc(firestore, 'campaigns', editingCampaign.id);
+        const campaignRef = doc(db, 'campaigns', editingCampaign.id);
         await updateDoc(campaignRef, {
             name: editForm.name,
             description: editForm.description,

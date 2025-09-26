@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ICONS } from '../../constants';
 import { collection, addDoc } from 'firebase/firestore';
-import { firestore as db } from '../../services/firebase';
+import { db } from '../../services/firebase';
 
 const NewCampaignForm = ({ onCreateCampaign, onCancel }) => {
     const [formData, setFormData] = useState({

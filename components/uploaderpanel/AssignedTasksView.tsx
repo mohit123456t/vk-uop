@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ICONS } from '../../constants';
 import ReelUploadView from './ReelUploadView';
+import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import authService from '../../services/authService';
 
 const AssignedTaskCard = ({ reel, onClick }) => {
     return (
@@ -30,27 +33,39 @@ const AssignedTaskCard = ({ reel, onClick }) => {
 
 const AssignedTasksView = () => {
     const [selectedReel, setSelectedReel] = useState(null);
+    const [assignedReels, setAssignedReels] = useState([]);
+    const [userProfile, setUserProfile] = useState(null);
 
-    const assignedReels = [
-        {
-            id: "R001",
-            duration: "45 sec",
-            script: "Get ready to glow this summer! 🌞✨ Start with our Summer Glow foundation for that perfect base. Apply the highlighter on cheekbones, nose bridge, and cupid's bow. Finish with our setting spray for all-day shine! 💄 Who's ready for summer? #SummerGlow #MakeupTutorial #BeautyTips",
-            hashtags: ["#SummerGlow", "#MakeupTutorial", "#BeautyTips", "#SummerMakeup", "#GlowUp"]
-        },
-        {
-            id: "R002",
-            duration: "30 sec",
-            script: "☔ Monsoon season is here and so are the DEALS! 💦 Get up to 50% off on all beauty products. Perfect time to stock up on your favorites! Limited time offer - don't miss out! 🛍️💄 #MonsoonSale #BeautyDeals #LimitedOffer",
-            hashtags: ["#MonsoonSale", "#BeautyDeals", "#LimitedOffer", "#SaleAlert", "#BeautyProducts"]
-        },
-        {
-            id: "R003",
-            duration: "60 sec",
-            script: "Introducing our Q3 collection! 🔥 New arrivals that you'll love. From bold lip colors to long-lasting foundations - we've got everything you need for the perfect look. Available now! 🛒✨ #NewCollection #BeautyProducts #MakeupLovers",
-            hashtags: ["#NewCollection", "#BeautyProducts", "#MakeupLovers", "#Q3Launch", "#BeautyEssentials"]
-        }
-    ];
+    useEffect(() => {
+        const unsubscribe = authService.onAuthStateChange((state) => {
+            if (state.isAuthenticated && state.userProfile) {
+                setUserProfile(state.userProfile);
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!userProfile) return;
+
+        const fetchTasks = async () => {
+            try {
+                const tasksRef = collection(db, 'uploader_tasks');
+                const q = query(tasksRef, where('assignedTo', '==', userProfile.email), orderBy('createdAt', 'desc'));
+                const querySnapshot = await getDocs(q);
+                const fetchedTasks = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setAssignedReels(fetchedTasks);
+            } catch (error) {
+                console.error('Error fetching tasks:', error);
+            }
+        };
+
+        fetchTasks();
+    }, [userProfile]);
 
     const handleReelClick = (reel) => {
         setSelectedReel(reel);

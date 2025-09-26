@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { firestore } from '../../services/firebase';
+import { db } from '../../services/firebase';
 import { collection, onSnapshot, query, where, doc, updateDoc, orderBy } from 'firebase/firestore';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 
@@ -24,7 +24,7 @@ const SuperAdminFinance = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const transactionsQuery = query(collection(firestore, 'transactions'), orderBy('date', 'desc'));
+    const transactionsQuery = query(collection(db, 'transactions'), orderBy('date', 'desc'));
     const unsubscribeTransactions = onSnapshot(transactionsQuery, (snapshot) => {
       let totalRevenue = 0;
       let totalExpenses = 0;
@@ -56,13 +56,13 @@ const SuperAdminFinance = () => {
         setLoading(false);
     });
 
-    const withdrawalsQuery = query(collection(firestore, 'withdrawals'), where('status', '==', 'Pending'));
+    const withdrawalsQuery = query(collection(db, 'withdrawals'), where('status', '==', 'Pending'));
     const unsubscribeWithdrawals = onSnapshot(withdrawalsQuery, (snapshot) => {
       const withdrawals = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPendingWithdrawals(withdrawals);
     });
 
-    const paymentsQuery = query(collection(firestore, 'payments'), where('status', '==', 'Pending'));
+    const paymentsQuery = query(collection(db, 'payments'), where('status', '==', 'Pending'));
     const unsubscribePayments = onSnapshot(paymentsQuery, (snapshot) => {
       const payments = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setPendingPayments(payments);
@@ -76,22 +76,22 @@ const SuperAdminFinance = () => {
   }, []);
 
  const handleApproveWithdrawal = async (id) => {
-    const docRef = doc(firestore, 'withdrawals', id);
+    const docRef = doc(db, 'withdrawals', id);
     await updateDoc(docRef, { status: 'Approved' });
   };
 
   const handleRejectWithdrawal = async (id) => {
-    const docRef = doc(firestore, 'withdrawals', id);
+    const docRef = doc(db, 'withdrawals', id);
     await updateDoc(docRef, { status: 'Rejected' });
   };
 
   const handleApprovePayment = async (id) => {
-    const docRef = doc(firestore, 'payments', id);
+    const docRef = doc(db, 'payments', id);
     await updateDoc(docRef, { status: 'Approved' });
   };
 
   const handleRejectPayment = async (id) => {
-    const docRef = doc(firestore, 'payments', id);
+    const docRef = doc(db, 'payments', id);
     await updateDoc(docRef, { status: 'Rejected' });
   };
 

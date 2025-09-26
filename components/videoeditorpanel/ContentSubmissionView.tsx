@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 
 const ContentSubmissionView = () => {
     const [uploadedFiles, setUploadedFiles] = useState([
-        { id: 1, name: 'admin_report.pdf', size: '8MB', status: 'draft', uploadedAt: '2023-10-01' },
-        { id: 2, name: 'system_backup.zip', size: '50MB', status: 'submitted', uploadedAt: '2023-10-02' },
+        { id: 1, name: 'edited_video.mp4', size: '45MB', status: 'draft', uploadedAt: '2023-10-01' },
+        { id: 2, name: 'final_cut.mp4', size: '38MB', status: 'submitted', uploadedAt: '2023-10-02' },
     ]);
 
     const handleFileUpload = (event) => {
@@ -34,14 +34,14 @@ const ContentSubmissionView = () => {
     return (
         <div className="space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">Upload Admin Content</h2>
+                <h2 className="text-xl font-semibold mb-4">Upload Edited Content</h2>
                 <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
                     <input
                         type="file"
                         onChange={handleFileUpload}
                         className="hidden"
                         id="file-upload"
-                        accept=".pdf,.zip,.xlsx,.docx,.csv"
+                        accept=".mp4,.mov,.avi,.jpg,.png"
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
                         <div className="text-gray-500 mb-2">
@@ -50,20 +50,20 @@ const ContentSubmissionView = () => {
                             </svg>
                         </div>
                         <p className="text-lg font-medium text-gray-900">Click to upload or drag and drop</p>
-                        <p className="text-sm text-gray-500">PDF, ZIP, XLSX, DOCX, CSV up to 100MB</p>
+                        <p className="text-sm text-gray-500">MP4, MOV, AVI, JPG, PNG up to 200MB</p>
                     </label>
                 </div>
             </div>
 
             <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-xl font-semibold mb-4">Submitted Admin Content</h2>
+                <h2 className="text-xl font-semibold mb-4">Submitted Edited Content</h2>
                 <div className="space-y-4">
                     {uploadedFiles.map(file => (
                         <div key={file.id} className="flex items-center justify-between p-4 border rounded-lg">
                             <div className="flex items-center space-x-4">
                                 <div className="flex-shrink-0">
                                     <svg className="h-8 w-8 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
                                     </svg>
                                 </div>
                                 <div>

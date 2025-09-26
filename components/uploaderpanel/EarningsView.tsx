@@ -1,6 +1,9 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ICONS } from '../../constants';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import authService from '../../services/authService';
 
 const StatCard = ({ title, value, icon }) => (
     <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
@@ -14,13 +17,49 @@ const StatCard = ({ title, value, icon }) => (
     </div>
 );
 
-const payoutHistory = [
-    { id: 'P001', date: '2024-07-30', amount: '₹2,150.00', status: 'Paid' },
-    { id: 'P002', date: '2024-06-30', amount: '₹1,980.00', status: 'Paid' },
-    { id: 'P003', date: '2024-05-30', amount: '₹2,400.00', status: 'Paid' },
-];
+const EarningsView = () => {
+    const [earnings, setEarnings] = useState([]);
+    const [userProfile, setUserProfile] = useState(null);
 
-const EarningsView = () => (
+    useEffect(() => {
+        const unsubscribe = authService.onAuthStateChange((state) => {
+            if (state.isAuthenticated && state.userProfile) {
+                setUserProfile(state.userProfile);
+            }
+        });
+
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!userProfile) return;
+
+        const fetchEarnings = async () => {
+            try {
+                const earningsRef = collection(db, 'uploader_earnings');
+                const q = query(earningsRef, where('userId', '==', userProfile.uid));
+                const querySnapshot = await getDocs(q);
+                const fetchedEarnings = querySnapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                setEarnings(fetchedEarnings);
+            } catch (error) {
+                console.error('Error fetching earnings:', error);
+            }
+        };
+
+        fetchEarnings();
+    }, [userProfile]);
+
+    const totalEarned = earnings.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const thisMonthEarnings = earnings.filter(e => {
+        const date = new Date(e.date);
+        const now = new Date();
+        return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+    }).reduce((sum, e) => sum + (e.amount || 0), 0);
+
+    return (
     <div className="space-y-8">
         <div>
             <h1 className="text-2xl font-bold text-slate-900">Earnings & Payments</h1>
@@ -28,11 +67,11 @@ const EarningsView = () => (
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <StatCard title="Total Earned" value="₹12,450" icon={ICONS.currencyRupee} />
-            <StatCard title="This Month's Earnings" value="₹1,245" icon={ICONS.chart} />
+            <StatCard title="Total Earned" value={`₹${totalEarned.toLocaleString()}`} icon={ICONS.currencyRupee} />
+            <StatCard title="This Month's Earnings" value={`₹${thisMonthEarnings.toLocaleString()}`} icon={ICONS.chart} />
             <StatCard title="Next Payout Date" value="Aug 30" icon={ICONS.wallet} />
         </div>
-        
+
         <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
             <h3 className="font-bold text-lg p-6 text-slate-800">Payout History</h3>
             <table className="w-full text-sm text-left text-slate-600">
@@ -46,11 +85,11 @@ const EarningsView = () => (
                     </tr>
                 </thead>
                 <tbody>
-                    {payoutHistory.map(payout => (
+                    {earnings.map(payout => (
                         <tr key={payout.id} className="bg-white border-b">
                             <td className="px-6 py-4">{payout.date}</td>
                             <td className="px-6 py-4 font-medium">{payout.id}</td>
-                            <td className="px-6 py-4 font-semibold">{payout.amount}</td>
+                            <td className="px-6 py-4 font-semibold">₹{payout.amount?.toLocaleString()}</td>
                             <td className="px-6 py-4 text-green-600">{payout.status}</td>
                             <td className="px-6 py-4 text-right"><button className="font-medium text-slate-600 hover:underline">View Statement</button></td>
                         </tr>
@@ -59,6 +98,7 @@ const EarningsView = () => (
             </table>
         </div>
     </div>
-);
+    );
+};
 
 export default EarningsView;

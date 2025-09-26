@@ -1,13 +1,10 @@
-
-
-import SettingsView from './adminpanel/SettingsView';
 import ProfileView from './adminpanel/ProfileView';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { ICONS } from '../constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import authService from '../services/authService'; // Added authService
+import authService from '../services/authService';
 
 import DashboardView from './adminpanel/DashboardView';
 import CampaignManagerView from './adminpanel/CampaignManagerView';
@@ -52,20 +49,8 @@ const NavItem = (props) => {
 
 const AdminPanel = ({ onNavigate }) => {
     const [activeView, setActiveView] = useState('dashboard');
-    const navigate = useNavigate(); // Added useNavigate hook
+    const navigate = useNavigate();
 
-    // Logout handler function
-    const handleLogout = async () => {
-        try {
-            await authService.signOut(); // Calling the signOut method from authService
-            navigate('/login'); // Redirecting to login page after successful logout
-        } catch (error) {
-            console.error("Failed to log out:", error);
-            // Optionally: show an error message to the user
-            alert('Logout failed. Please try again.');
-        }
-    };
-    
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: ICONS.layout },
         { id: 'profile', label: 'Profile', icon: ICONS.userCircle },
@@ -75,6 +60,17 @@ const AdminPanel = ({ onNavigate }) => {
         { id: 'finance', label: 'Finance', icon: ICONS.wallet },
         { id: 'communication', label: 'Communication', icon: ICONS.bell },
     ];
+
+    const handleLogout = async () => {
+        try {
+            await authService.logout();
+            navigate('/'); // Navigate to landing page after logout
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Force navigate even if logout fails
+            navigate('/');
+        }
+    };
 
     const renderView = () => {
         switch (activeView) {
@@ -92,11 +88,12 @@ const AdminPanel = ({ onNavigate }) => {
 
     return (
         <div className="flex h-screen bg-gradient-to-br from-slate-50 to-blue-50 font-sans text-slate-800">
+            {/* Sticky Sidebar */}
             <motion.aside
                 initial={{ x: -300, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ duration: 0.5, ease: "easeOut" }}
-                className="w-64 flex-shrink-0 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-slate-300 flex flex-col no-scrollbar shadow-2xl"
+                className="fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-slate-300 flex flex-col z-50 shadow-2xl"
             >
                 <motion.div
                     initial={{ y: -50, opacity: 0 }}
@@ -106,7 +103,7 @@ const AdminPanel = ({ onNavigate }) => {
                 >
                     <Logo />
                 </motion.div>
-                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-600 scrollbar-track-slate-800">
                     <AnimatePresence>
                         {navItems.map((item, index) => (
                             <motion.div
@@ -134,7 +131,7 @@ const AdminPanel = ({ onNavigate }) => {
                     <motion.button
                         whileHover={{ scale: 1.02, x: 5 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={handleLogout} // Updated onClick to use handleLogout
+                        onClick={handleLogout}
                         className="flex items-center w-full text-left px-4 py-3 text-sm font-medium rounded-xl text-slate-300 hover:bg-red-600/20 hover:text-red-300 mt-4 transition-all duration-200 hover:shadow-md"
                     >
                         <motion.span
@@ -148,7 +145,9 @@ const AdminPanel = ({ onNavigate }) => {
                     </motion.button>
                 </motion.div>
             </motion.aside>
-            <div className="flex-1 flex flex-col overflow-hidden">
+
+            {/* Main Content Area - Adjusted for fixed sidebar */}
+            <div className="flex-1 flex flex-col overflow-hidden ml-64">
                 <motion.header
                     initial={{ y: -100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}

@@ -1,219 +1,245 @@
 import React, { useState } from 'react';
 import { ICONS } from '../../constants';
-import UploadPanel from './UploadPanel';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 
-const CampaignDetailView = ({ campaign, onBack, onUpload, onUpdateCampaign, onCreateOrder }) => {
-    const [isEditingDescription, setIsEditingDescription] = useState(false);
-    const [editedDescription, setEditedDescription] = useState(campaign.description || '');
-
-    const totalViews = campaign.reels.reduce((sum, reel) => sum + reel.views, 0);
-    const totalLikes = campaign.reels.reduce((sum, reel) => sum + reel.likes, 0);
-    const avgViews = campaign.reels.length > 0 ? Math.round(totalViews / campaign.reels.length) : 0;
-
-    const chartData = campaign.reels.map(reel => ({
-        name: reel.id,
-        views: reel.views,
-        likes: reel.likes,
-    }));
-
-    const pieData = [
-        { name: 'Views', value: totalViews, color: '#3b82f6' },
-        { name: 'Engagement', value: totalLikes, color: '#10b981' },
-    ];
-
-    const handleEditClick = () => {
-        setIsEditingDescription(true);
+// StatusBadge component - Enhanced
+const StatusBadge = ({ status }) => {
+    const baseClasses = "text-xs font-semibold px-3 py-1 rounded-full shadow-sm";
+    const statusClasses = {
+        "Active": "bg-gradient-to-r from-green-400 to-green-500 text-white animate-pulse",
+        "Completed": "bg-gradient-to-r from-slate-400 to-slate-500 text-white",
+        "Paused": "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white",
+        "Pending": "bg-gradient-to-r from-orange-400 to-orange-500 text-white",
     };
+    return <span className={`${baseClasses} ${statusClasses[status] || statusClasses["Pending"]}`}>{status}</span>;
+};
 
-    const handleCancelClick = () => {
-        setEditedDescription(campaign.description || '');
-        setIsEditingDescription(false);
-    };
+// CampaignCard component - Fully Enhanced
+const CampaignCard = ({ campaign, onSelectCampaign, onCreateOrder }) => {
+    const totalLikes = campaign.reels.reduce((sum, reel) => sum + (reel.likes || 0), 0);
+    const totalComments = campaign.reels.reduce((sum, reel) => sum + (reel.comments || 0), 0);
+    const totalShares = campaign.reels.reduce((sum, reel) => sum + (reel.shares || 0), 0);
+    const totalEngagement = totalLikes + totalComments + totalShares;
+    const avgViews = campaign.reels.length > 0 ? Math.round(campaign.views / campaign.reels.length) : 0;
+    const engagementRate = campaign.views > 0 ? ((totalEngagement / campaign.views) * 100).toFixed(1) : 0;
 
-    const handleSaveClick = () => {
-        onUpdateCampaign({ ...campaign, description: editedDescription });
-        setIsEditingDescription(false);
-    };
+    // Get latest upload date
+    const lastUpdated = campaign.reels.length > 0 
+        ? new Date(Math.max(...campaign.reels.map(r => new Date(r.uploadedAt)))).toLocaleDateString()
+        : 'Never';
 
     return (
-        <div className="animate-fade-in">
-            <button onClick={onBack} className="flex items-center text-sm font-medium text-slate-600 hover:text-slate-900 mb-6 transition-colors">
-                {ICONS.arrowLeft}
-                <span className="ml-2">Back to Campaigns</span>
-            </button>
-
-            <div className="mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">{campaign.name}</h1>
-                <p className="text-slate-500">Campaign ID: {campaign.id}</p>
-                {!isEditingDescription ? (
-                    campaign.description && (
-                        <div className="mt-4 p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
-                            <div className="flex justify-between items-center mb-2">
-                                <h4 className="text-sm font-semibold text-slate-700">Campaign Description</h4>
-                                <button onClick={handleEditClick} className="text-blue-600 hover:text-blue-800 text-sm font-semibold">
-                                    Edit
-                                </button>
-                            </div>
-                            <p className="text-slate-600 leading-relaxed">{campaign.description}</p>
-                        </div>
-                    )
-                ) : (
-                    <div className="mt-4 p-4 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
-                        <h4 className="text-sm font-semibold text-slate-700 mb-2">Edit Campaign Description</h4>
-                        <textarea
-                            value={editedDescription}
-                            onChange={(e) => setEditedDescription(e.target.value)}
-                            rows={4}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        />
-                        <div className="mt-2 flex space-x-2">
-                            <button
-                                onClick={handleSaveClick}
-                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all"
-                            >
-                                Save
-                            </button>
-                            <button
-                                onClick={handleCancelClick}
-                                className="px-4 py-2 rounded-lg font-semibold border border-slate-300 hover:border-slate-400 transition-colors"
-                            >
-                                Cancel
-                            </button>
-                        </div>
-                    </div>
-                )}
+        <div 
+            className="bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 group"
+            style={{ animation: 'fadeInUp 0.5s ease-out' }}
+        >
+            {/* Header */}
+            <div className="flex justify-between items-start mb-5">
+                <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                        {campaign.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">ID: <span className="font-mono">{campaign.id}</span></p>
+                </div>
+                <StatusBadge status={campaign.status} />
             </div>
 
-            {/* Key Metrics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-xl text-white shadow-lg">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-blue-100 text-sm">Total Views</p>
-                            <p className="text-2xl font-bold">{totalViews.toLocaleString()}</p>
-                        </div>
-                        <div className="text-4xl opacity-80">{ICONS.chart}</div>
-                    </div>
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-3 bg-blue-50 rounded-xl">
+                    <p className="text-2xl sm:text-3xl font-bold text-blue-600">
+                        {campaign.views.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1">Total Views</p>
                 </div>
-                <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-xl text-white shadow-lg">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-green-100 text-sm">Total Likes</p>
-                            <p className="text-2xl font-bold">{totalLikes.toLocaleString()}</p>
-                        </div>
-                        <div className="text-4xl opacity-80">{ICONS.sparkles}</div>
-                    </div>
+                <div className="text-center p-3 bg-green-50 rounded-xl">
+                    <p className="text-2xl sm:text-3xl font-bold text-green-600">
+                        {totalEngagement.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1">Engagement</p>
                 </div>
-                <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-xl text-white shadow-lg">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-purple-100 text-sm">Reels Count</p>
-                            <p className="text-2xl font-bold">{campaign.reelsCount}</p>
-                        </div>
-                        <div className="text-4xl opacity-80">{ICONS.photo}</div>
-                    </div>
-                </div>
-                <div className="bg-gradient-to-br from-orange-500 to-orange-600 p-6 rounded-xl text-white shadow-lg">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-orange-100 text-sm">Avg Views/Reel</p>
-                            <p className="text-2xl font-bold">{avgViews.toLocaleString()}</p>
-                        </div>
-                        <div className="text-4xl opacity-80">{ICONS.chart}</div>
-                    </div>
+                <div className="text-center p-3 bg-purple-50 rounded-xl">
+                    <p className="text-2xl sm:text-3xl font-bold text-purple-600">
+                        {engagementRate}%
+                    </p>
+                    <p className="text-xs text-slate-600 mt-1">Eng. Rate</p>
                 </div>
             </div>
 
-            <div className="mb-6">
-                <UploadPanel onUpload={(file) => onUpload(file, campaign)} />
-            </div>
-
-            {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200/80">
-                    <h3 className="font-bold text-lg mb-4 text-slate-800">Reel Performance</h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip />
-                                <Bar dataKey="views" fill="#3b82f6" />
-                                <Bar dataKey="likes" fill="#10b981" />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+            {/* Details */}
+            <div className="space-y-3 mb-6">
+                <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Reels Count:</span>
+                    <span className="font-semibold text-slate-800">{campaign.reelsCount}</span>
                 </div>
-
-                <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200/80">
-                    <h3 className="font-bold text-lg mb-4 text-slate-800">Views vs Engagement</h3>
-                    <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={pieData}
-                                    cx="50%"
-                                    cy="50%"
-                                    outerRadius={80}
-                                    dataKey="value"
-                                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                >
-                                    {pieData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
+                <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Avg Views/Reel:</span>
+                    <span className="font-semibold text-slate-800">{avgViews.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Last Updated:</span>
+                    <span className="font-semibold text-slate-800">{lastUpdated}</span>
                 </div>
             </div>
 
-            {/* Detailed Table */}
-            <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200/80">
-                <h3 className="font-bold text-lg mb-4 text-slate-800">Detailed Reel Metrics</h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left text-slate-600">
-                        <thead className="text-xs text-slate-700 uppercase bg-gradient-to-r from-slate-50 to-slate-100">
-                            <tr>
-                                <th scope="col" className="px-6 py-3">Reel ID</th>
-                                <th scope="col" className="px-6 py-3">Views</th>
-                                <th scope="col" className="px-6 py-3">Likes</th>
-                                <th scope="col" className="px-6 py-3">Status</th>
-                                <th scope="col" className="px-6 py-3">Uploaded At</th>
-                                <th scope="col" className="px-6 py-3">Engagement Rate</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {campaign.reels.map(reel => {
-                                const engagementRate = reel.views > 0 ? ((reel.likes / reel.views) * 100).toFixed(2) : 0;
-                                const uploadedDate = new Date(reel.uploadedAt).toLocaleDateString();
-                                return (
-                                    <tr key={reel.id} className="bg-white border-b hover:bg-slate-50 transition-colors">
-                                        <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{reel.id}</th>
-                                        <td className="px-6 py-4 font-semibold text-blue-600">{reel.views.toLocaleString()}</td>
-                                        <td className="px-6 py-4 font-semibold text-green-600">{reel.likes.toLocaleString()}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                                                reel.status === 'Live' ? 'bg-green-100 text-green-800' :
-                                                'bg-yellow-100 text-yellow-800'
-                                            }`}>
-                                                {reel.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-slate-600">{uploadedDate}</td>
-                                        <td className="px-6 py-4 font-semibold text-purple-600">{engagementRate}%</td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Action Buttons - SEXY BUTTONS JO TUM CHAHE HO! */}
+            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+                <button
+                    onClick={() => onSelectCampaign(campaign)}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:from-blue-600 hover:to-blue-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
+                >
+                    📊 View Analytics
+                </button>
+                <button
+                    onClick={() => onCreateOrder(campaign)}
+                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-4 rounded-xl hover:from-green-600 hover:to-emerald-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
+                >
+                    🛒 Create Order
+                </button>
             </div>
         </div>
     );
 };
 
-export default CampaignDetailView;
+// Empty State Component
+const EmptyState = ({ onNewCampaign }) => (
+    <div className="text-center py-16 bg-gradient-to-b from-slate-50 to-white rounded-2xl">
+        <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+            <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+        </div>
+        <h3 className="text-xl font-bold text-slate-800 mb-2">No campaigns yet</h3>
+        <p className="text-slate-500 mb-6 max-w-md mx-auto">Create your first campaign to start tracking performance and managing your marketing efforts.</p>
+        <button
+            onClick={onNewCampaign}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
+        >
+            🚀 Create New Campaign
+        </button>
+    </div>
+);
+
+// CampaignsView component - FULLY CARD BASED!
+const CampaignsView = () => {
+    const [campaigns, setCampaigns] = useState([
+        {
+            id: "CMP-001",
+            name: "Summer Sale Blitz",
+            status: "Active",
+            reels: [
+                { id: "R-001", likes: 1500, comments: 89, shares: 45, views: 25000, uploadedAt: "2024-06-01T12:00:00.000Z", status: "Live" },
+                { id: "R-002", likes: 2800, comments: 156, shares: 89, views: 42000, uploadedAt: "2024-06-05T12:00:00.000Z", status: "Live" },
+                { id: "R-003", likes: 3200, comments: 203, shares: 124, views: 58000, uploadedAt: "2024-06-10T12:00:00.000Z", status: "Live" }
+            ],
+            reelsCount: 3,
+            views: 125000
+        },
+        {
+            id: "CMP-002",
+            name: "Back to School",
+            status: "Completed",
+            reels: [
+                { id: "R-004", likes: 800, comments: 45, shares: 23, views: 15000, uploadedAt: "2024-05-15T12:00:00.000Z", status: "Live" },
+                { id: "R-005", likes: 1200, comments: 67, shares: 34, views: 22000, uploadedAt: "2024-05-20T12:00:00.000Z", status: "Live" }
+            ],
+            reelsCount: 2,
+            views: 37000
+        },
+        {
+            id: "CMP-003",
+            name: "Holiday Special",
+            status: "Paused",
+            reels: [
+                { id: "R-006", likes: 500, comments: 23, shares: 12, views: 8000, uploadedAt: "2024-07-01T12:00:00.000Z", status: "Processing" }
+            ],
+            reelsCount: 1,
+            views: 8000
+        }
+    ]);
+
+    const handleSelectCampaign = (campaign) => {
+        console.log("Campaign selected:", campaign);
+        // Navigate to campaign detail view
+    };
+
+    const handleNewCampaign = () => {
+        console.log("New campaign created");
+        // Show create campaign modal/form
+    };
+
+    const handleCreateOrder = (campaign) => {
+        console.log("Order created for campaign:", campaign);
+        // Navigate to order creation page
+    };
+
+    return (
+        <div className="animate-fade-in p-4 sm:p-6">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
+                        Your Campaigns
+                    </h1>
+                    <p className="text-slate-500">Manage and track all your marketing campaigns</p>
+                </div>
+                <button 
+                    onClick={handleNewCampaign} 
+                    className="mt-4 sm:mt-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl flex items-center text-sm"
+                >
+                    <span className="mr-2 text-lg">{ICONS.plus}</span>
+                    New Campaign
+                </button>
+            </div>
+
+            {/* Campaign Cards Grid */}
+            {campaigns.length === 0 ? (
+                <EmptyState onNewCampaign={handleNewCampaign} />
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {campaigns.map((campaign, index) => (
+                        <div key={campaign.id} style={{ animationDelay: `${index * 100}ms` }}>
+                            <CampaignCard 
+                                campaign={campaign} 
+                                onSelectCampaign={handleSelectCampaign} 
+                                onCreateOrder={handleCreateOrder} 
+                            />
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Stats Summary Card */}
+            {campaigns.length > 0 && (
+                <div className="mt-8 bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
+                    <h3 className="text-lg font-bold text-slate-900 mb-4">📊 Campaign Summary</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div className="text-center p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white">
+                            <p className="text-2xl font-bold">{campaigns.length}</p>
+                            <p className="text-sm opacity-90">Total Campaigns</p>
+                        </div>
+                        <div className="text-center p-4 bg-gradient-to-br from-green-500 to-green-600 rounded-xl text-white">
+                            <p className="text-2xl font-bold">
+                                {campaigns.reduce((sum, c) => sum + c.reelsCount, 0)}
+                            </p>
+                            <p className="text-sm opacity-90">Total Reels</p>
+                        </div>
+                        <div className="text-center p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl text-white">
+                            <p className="text-2xl font-bold">
+                                {campaigns.reduce((sum, c) => sum + c.views, 0).toLocaleString()}
+                            </p>
+                            <p className="text-sm opacity-90">Total Views</p>
+                        </div>
+                        <div className="text-center p-4 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl text-white">
+                            <p className="text-2xl font-bold">
+                                {campaigns.filter(c => c.status === 'Active').length}
+                            </p>
+                            <p className="text-sm opacity-90">Active Campaigns</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default CampaignsView;

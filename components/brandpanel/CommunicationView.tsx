@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, addDoc, query, orderBy } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -53,7 +52,7 @@ const CommunicationView = () => {
             }
 
             await addDoc(collection(db, 'messages'), {
-                sender: 'Admin',
+                sender: 'Brand',
                 content: contentToSend,
                 type: messageType,
                 timestamp: new Date(),

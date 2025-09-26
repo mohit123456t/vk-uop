@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ICONS } from '../../constants';
 import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
-import { firestore as db } from '../../services/firebase';
-import authService from '../../services/authService';
+import { db } from '../../services/firebase';
 
 const StatCard = ({ title, value, icon, subtitle = null, extra = null }) => (
     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow">
@@ -19,12 +18,10 @@ const StatCard = ({ title, value, icon, subtitle = null, extra = null }) => (
     </div>
 );
 
-const DashboardView = ({ onEditTask }) => {
+const DashboardView = ({ onEditTask = (task) => {}, userProfile }) => {
     const [tasks, setTasks] = useState<any[]>([]);
     const [completedTasks, setCompletedTasks] = useState<any[]>([]);
     const [performanceData, setPerformanceData] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [userProfile, setUserProfile] = useState<any>(null);
     const [stats, setStats] = useState({
         totalAssigned: 0,
         totalCompleted: 0,
@@ -36,19 +33,13 @@ const DashboardView = ({ onEditTask }) => {
     });
 
     useEffect(() => {
-        const unsubscribe = authService.onAuthStateChange((authState) => {
-            if (authState.isAuthenticated && authState.userProfile) {
-                setUserProfile(authState.userProfile);
-                fetchDashboardData(authState.userProfile.email);
-            }
-        });
-
-        return () => unsubscribe();
-    }, []);
+        if (userProfile) {
+            fetchDashboardData(userProfile.email);
+        }
+    }, [userProfile]);
 
     const fetchDashboardData = async (userEmail: string) => {
         try {
-            setLoading(true);
 
             // Fetch script tasks assigned to current user
             const tasksQuery = query(
@@ -68,8 +59,8 @@ const DashboardView = ({ onEditTask }) => {
             const completedQuery = query(
                 collection(db, 'script_tasks'),
                 where('assignedTo', '==', userEmail),
-                where('status', '==', 'completed'),
-                orderBy('completedAt', 'desc'),
+                where('status', '==', 'Approved'),
+                orderBy('updatedAt', 'desc'),
                 limit(5)
             );
             const completedSnapshot = await getDocs(completedQuery);
@@ -90,7 +81,7 @@ const DashboardView = ({ onEditTask }) => {
                 task.createdAt && task.createdAt.startsWith(today)
             ).length;
             const todayCompleted = completedData.filter((task: any) =>
-                task.completedAt && task.completedAt.startsWith(today)
+                task.updatedAt && task.updatedAt.startsWith(today)
             ).length;
 
             setStats({
@@ -110,23 +101,35 @@ const DashboardView = ({ onEditTask }) => {
                 date.setMonth(date.getMonth() - i);
                 const month = date.toLocaleDateString('en-US', { month: 'short' });
                 const monthCompleted = completedData.filter((task: any) => {
-                    if (!task.completedAt) return false;
-                    const taskDate = new Date(task.completedAt);
+                    if (!task.updatedAt) return false;
+                    const taskDate = new Date(task.updatedAt);
                     return taskDate.getMonth() === date.getMonth() &&
                            taskDate.getFullYear() === date.getFullYear();
                 }).length;
 
                 performance.push({
-                    month,
-                    scripts: monthCompleted
+                    name: month,
+                    completed: monthCompleted,
+                    assigned: 0
                 });
             }
             setPerformanceData(performance);
 
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
-        } finally {
-            setLoading(false);
+            // Set default values on error
+            setTasks([]);
+            setCompletedTasks([]);
+            setPerformanceData([]);
+            setStats({
+                totalAssigned: 0,
+                totalCompleted: 0,
+                totalScripts: 0,
+                approvalRate: 0,
+                todayAssigned: 0,
+                todayCompleted: 0,
+                pendingTasks: 0
+            });
         }
     };
 
@@ -152,6 +155,85 @@ const DashboardView = ({ onEditTask }) => {
                 <StatCard title="Scripts Assigned Today" value={todayAssigned.toString()} icon={ICONS.clipboard} />
                 <StatCard title="Scripts Completed Today" value={todayCompleted.toString()} icon={ICONS.checkCircle} />
                 <StatCard title="Pending Scripts" value={pendingTasks.toString()} icon={ICONS.bell} />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4">Recent Tasks</h3>
+                    {tasks.length === 0 ? (
+                        <div className="text-center py-8">
+                            <div className="text-slate-400 mb-4">
+                                <span className="text-4xl">📝</span>
+                            </div>
+                            <h4 className="text-lg font-semibold text-slate-900 mb-2">No tasks assigned yet</h4>
+                            <p className="text-slate-600">Your assigned tasks will appear here</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {tasks.slice(0, 5).map((task: any) => (
+                                <div key={task.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                                    <div>
+                                        <h4 className="font-semibold text-slate-800">{task.campaignName || task.id}</h4>
+                                        <p className="text-sm text-slate-600">{task.brief || 'No brief available'}</p>
+                                        <p className="text-xs text-slate-500">Status: {task.status || 'Pending'}</p>
+                                    </div>
+                                    <button
+                                        onClick={() => onEditTask && onEditTask(task)}
+                                        className="bg-slate-900 text-white px-3 py-1 rounded text-sm hover:bg-slate-700"
+                                    >
+                                        Edit
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4">Performance Overview</h3>
+                    {performanceData.length === 0 ? (
+                        <div className="text-center py-8">
+                            <div className="text-slate-400 mb-4">
+                                <span className="text-4xl">📊</span>
+                            </div>
+                            <h4 className="text-lg font-semibold text-slate-900 mb-2">No performance data</h4>
+                            <p className="text-slate-600">Your performance metrics will appear here</p>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={200}>
+                            <LineChart data={performanceData}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip />
+                                <Line type="monotone" dataKey="completed" stroke="#1e293b" strokeWidth={2} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    )}
+                </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                <h3 className="font-bold text-lg text-slate-800 mb-4">Completed Scripts</h3>
+                {completedTasks.length === 0 ? (
+                    <div className="text-center py-8">
+                        <div className="text-slate-400 mb-4">
+                            <span className="text-4xl">✅</span>
+                        </div>
+                        <h4 className="text-lg font-semibold text-slate-900 mb-2">No completed scripts yet</h4>
+                        <p className="text-slate-600">Your completed scripts will appear here</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {completedTasks.map((task: any) => (
+                            <div key={task.id} className="p-4 bg-green-50 rounded-lg border border-green-200">
+                                <h4 className="font-semibold text-green-800">{task.campaignName || task.id}</h4>
+                                <p className="text-sm text-green-600">{task.brief || 'No brief available'}</p>
+                                <p className="text-xs text-green-500">Completed: {task.updatedAt ? new Date(task.updatedAt).toLocaleDateString() : 'N/A'}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

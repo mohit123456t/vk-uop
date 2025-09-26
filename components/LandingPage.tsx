@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import Logo from './Logo';
 import { ICONS } from '../constants';
-
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const navItems = ["How It Works", "Pricing", "Why Us", "Case Study"];
@@ -17,7 +16,7 @@ const LandingPage: React.FC = () => {
               <a key={item} href={`#${item.toLowerCase().replace(/ /g, '-')}`} className="text-slate-700 hover:text-slate-900 font-medium transition-colors">{item}</a>
             ))}
           </nav>
-          <button onClick={() => navigate('/login')} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2 px-5 rounded-lg transition-all duration-300 transform hover:scale-105 btn-hover-effect shadow-lg">
+          <button onClick={() => navigate('/role-login')} className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold py-2 px-5 rounded-lg transition-all duration-300 transform hover:scale-105 btn-hover-effect shadow-lg">
             Sign In
           </button>
         </div>

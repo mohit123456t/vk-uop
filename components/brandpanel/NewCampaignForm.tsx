@@ -72,7 +72,8 @@ const NewCampaignForm = ({ onCreateCampaign, onCancel }) => {
                 id: `C${Date.now()}`,
                 name: formData.name,
                 description: formData.description,
-                status: 'Active',
+                status: 'Pending Approval',
+                currentStage: 'pending_approval',
                 reelsCount: 0,
                 views: 0,
                 targetAudience: formData.targetAudience,
@@ -80,7 +81,8 @@ const NewCampaignForm = ({ onCreateCampaign, onCancel }) => {
                 startDate: formData.startDate,
                 endDate: formData.endDate,
                 imageUrl: URL.createObjectURL(campaignImage),
-                reels: []
+                reels: [],
+                assignedStaff: []
             };
 
             onCreateCampaign(newCampaign);

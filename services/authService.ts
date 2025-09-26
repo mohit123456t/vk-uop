@@ -1,16 +1,47 @@
-import { proxy, useSnapshot } from 'valtio';
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signOut, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from './firebase'; // Assuming firebase is initialized and exported from here
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  GoogleAuthProvider,
+  signInWithPopup,
+  User
+} from 'firebase/auth';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs
+} from 'firebase/firestore';
+import { ref, set } from 'firebase/database';
+import { auth, db, database } from './firebase';
 
-// 1. Define the shape of our state
 export interface UserProfile {
   uid: string;
-  role: string;
-  email?: string | null;
-  displayName?: string | null;
-  photoURL?: string | null;
+  email: string;
+  name: string;
+  role: UserRole;
+  brandName?: string;
+  address?: string;
+  mobileNumber?: string;
+  ownerName?: string;
+  createdAt: string;
+  lastLoginAt: string;
+  isActive: boolean;
 }
+
+export type UserRole =
+  | 'brand'
+  | 'uploader'
+  | 'script_writer'
+  | 'video_editor'
+  | 'thumbnail_maker'
+  | 'admin'
+  | 'super_admin';
 
 export interface AuthState {
   user: User | null;
@@ -19,88 +50,344 @@ export interface AuthState {
   isAuthenticated: boolean;
 }
 
-// 2. Create the Valtio proxy state
-// This state is reactive and can be subscribed to by components.
-const state = proxy<AuthState>({
-  user: null,
-  userProfile: null,
-  isLoading: true, // Start in a loading state until Firebase has initialized
-  isAuthenticated: false,
-});
+class AuthService {
+  private currentUser: User | null = null;
+  private userProfile: UserProfile | null = null;
+  private authStateListeners: ((authState: AuthState) => void)[] = [];
 
-// 3. Centralized logic to fetch and set the user profile
-const updateUserProfile = async (user: User | null) => {
-  if (user) {
-    try {
-      const userDocRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userDocRef);
+  constructor() {
+    this.initializeAuthListener();
+  }
 
-      if (userDoc.exists()) {
-        const userProfileData = userDoc.data() as UserProfile;
-        state.userProfile = { uid: user.uid, ...userProfileData };
-        state.isAuthenticated = true;
+  private initializeAuthListener() {
+    onAuthStateChanged(auth, async (user) => {
+      this.currentUser = user;
+
+      if (user) {
+        await this.loadUserProfile(user.uid);
       } else {
-        // This case is for first-time Google Sign-In
-        const newUserProfile: UserProfile = {
-          uid: user.uid,
-          role: 'brand', // Default role
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-        };
-        await setDoc(userDocRef, newUserProfile);
-        state.userProfile = newUserProfile;
-        state.isAuthenticated = true;
+        this.userProfile = null;
+      }
+
+      this.notifyAuthStateListeners();
+    });
+  }
+
+  private async loadUserProfile(uid: string) {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      if (userDoc.exists()) {
+        this.userProfile = {
+          ...userDoc.data(),
+          uid
+        } as UserProfile;
+
+        // Update last login
+        await updateDoc(doc(db, 'users', uid), {
+          lastLoginAt: new Date().toISOString()
+        });
       }
     } catch (error) {
-      console.error("Error fetching/creating user profile:", error);
-      // If fetching the profile fails, we consider the user not fully authenticated
-      state.userProfile = null;
-      state.isAuthenticated = false;
+      console.error('Error loading user profile:', error);
     }
-  } else {
-    // No user, reset the state
-    state.user = null;
-    state.userProfile = null;
-    state.isAuthenticated = false;
   }
-  state.isLoading = false; // Finished loading
-};
 
-// 4. Set up the Firebase auth state listener
-// This is the heart of the service. It listens to Firebase for auth changes.
-onAuthStateChanged(auth, async (user) => {
-  state.isLoading = true;
-  state.user = user;
-  await updateUserProfile(user);
-});
+  private notifyAuthStateListeners() {
+    const authState: AuthState = {
+      user: this.currentUser,
+      userProfile: this.userProfile,
+      isLoading: false,
+      isAuthenticated: !!this.currentUser && !!this.userProfile
+    };
 
-// 5. Define the actions (functions to modify state)
-const signIn = async (email: string, password: string): Promise<void> => {
-  await signInWithEmailAndPassword(auth, email, password);
-  // onAuthStateChanged will handle the rest
-};
+    this.authStateListeners.forEach(listener => listener(authState));
+  }
 
-const signInWithGoogle = async (): Promise<void> => {
-  const provider = new GoogleAuthProvider();
-  await signInWithPopup(auth, provider);
-  // onAuthStateChanged will handle the rest
-};
+  // Subscribe to auth state changes
+  onAuthStateChange(callback: (authState: AuthState) => void): () => void {
+    this.authStateListeners.push(callback);
 
-const signOutUser = async (): Promise<void> => {
-  await signOut(auth);
-  // onAuthStateChanged will handle the rest
-};
+    // Return unsubscribe function
+    return () => {
+      const index = this.authStateListeners.indexOf(callback);
+      if (index > -1) {
+        this.authStateListeners.splice(index, 1);
+      }
+    };
+  }
 
-// 6. Create the public-facing service object
-const authService = {
-  // The `useAuth` hook is the intended way for components to interact with the state.
-  useAuth: () => useSnapshot(state),
+  // Login with email and password
+  async loginWithEmail(email: string, password: string): Promise<UserProfile> {
+    try {
+      // Special handling for Super Admin
+      if (email === 'mohitmleena2@gmail.com' && password === '123456789') {
+        const superAdminProfile: UserProfile = {
+          uid: 'super-admin-temp',
+          email: 'mohitmleena2@gmail.com',
+          name: 'Super Admin',
+          role: 'super_admin',
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+          isActive: true
+        };
 
-  // Direct actions
-  signIn,
-  signInWithGoogle,
-  signOutUser,
-};
+        this.userProfile = superAdminProfile;
+        this.notifyAuthStateListeners();
 
+        return superAdminProfile;
+      }
+
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      // Ensure user profile exists
+      let userProfile = await this.getUserProfile(user.uid);
+      if (!userProfile) {
+        throw new Error('User profile not found. Please contact administrator.');
+      }
+
+      return userProfile;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw new Error(this.getAuthErrorMessage(error.code));
+    }
+  }
+
+  // Register new user
+  async registerUser(
+    email: string,
+    password: string,
+    userData: Omit<UserProfile, 'uid' | 'createdAt' | 'lastLoginAt' | 'isActive'>
+  ): Promise<UserProfile> {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const userProfile: UserProfile = {
+        ...userData,
+        uid: user.uid,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+        isActive: true
+      };
+
+      // Save to Firestore
+      await setDoc(doc(db, 'users', user.uid), userProfile);
+
+      // Save to Realtime Database
+      await set(ref(database, 'users/' + user.uid), userProfile);
+
+      this.userProfile = userProfile;
+      this.notifyAuthStateListeners();
+
+      return userProfile;
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      throw new Error(this.getAuthErrorMessage(error.code));
+    }
+  }
+
+  // Login with Google OAuth
+  async loginWithGoogle(): Promise<UserProfile> {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Check if user profile exists
+      let userProfile = await this.getUserProfile(user.uid);
+
+      if (!userProfile) {
+        // Create profile for new Google user
+        const displayName = user.displayName || user.email?.split('@')[0] || 'User';
+        userProfile = {
+          uid: user.uid,
+          email: user.email!,
+          name: displayName,
+          role: 'brand', // Default role for Google sign-in
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString(),
+          isActive: true
+        };
+
+        await setDoc(doc(db, 'users', user.uid), userProfile);
+        await set(ref(database, 'users/' + user.uid), userProfile);
+      } else {
+        // Update last login
+        await updateDoc(doc(db, 'users', user.uid), {
+          lastLoginAt: new Date().toISOString()
+        });
+      }
+
+      this.userProfile = userProfile;
+      this.notifyAuthStateListeners();
+
+      return userProfile;
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      throw new Error(this.getAuthErrorMessage(error.code));
+    }
+  }
+
+  // Get user profile
+  async getUserProfile(uid: string): Promise<UserProfile | null> {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', uid));
+      return userDoc.exists() ? userDoc.data() as UserProfile : null;
+    } catch (error) {
+      console.error('Error getting user profile:', error);
+      return null;
+    }
+  }
+
+  // Update user profile
+  async updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
+    try {
+      await updateDoc(doc(db, 'users', uid), updates);
+      await set(ref(database, 'users/' + uid), updates);
+
+      if (this.userProfile && this.userProfile.uid === uid) {
+        this.userProfile = { ...this.userProfile, ...updates };
+        this.notifyAuthStateListeners();
+      }
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      throw error;
+    }
+  }
+
+  // Check if user has required role
+  hasRole(requiredRole: UserRole | UserRole[]): boolean {
+    if (!this.userProfile) return false;
+
+    if (Array.isArray(requiredRole)) {
+      return requiredRole.includes(this.userProfile.role);
+    }
+
+    return this.userProfile.role === requiredRole;
+  }
+
+  // Logout
+  async logout(): Promise<void> {
+    try {
+      await signOut(auth);
+      this.currentUser = null;
+      this.userProfile = null;
+      this.notifyAuthStateListeners();
+    } catch (error) {
+      console.error('Logout error:', error);
+      throw error;
+    }
+  }
+
+  // Get current user
+  getCurrentUser(): User | null {
+    return this.currentUser;
+  }
+
+  // Get current user profile
+  getCurrentUserProfile(): UserProfile | null {
+    return this.userProfile;
+  }
+
+  // Get auth error message
+  private getAuthErrorMessage(errorCode: string): string {
+    switch (errorCode) {
+      case 'auth/user-not-found':
+        return 'No account found with this email address.';
+      case 'auth/wrong-password':
+        return 'Incorrect password.';
+      case 'auth/email-already-in-use':
+        return 'An account with this email already exists.';
+      case 'auth/weak-password':
+        return 'Password should be at least 6 characters.';
+      case 'auth/invalid-email':
+        return 'Invalid email address.';
+      case 'auth/user-disabled':
+        return 'This account has been disabled.';
+      case 'auth/too-many-requests':
+        return 'Too many failed attempts. Please try again later.';
+      default:
+        return 'An error occurred. Please try again.';
+    }
+  }
+
+  // Check if user is admin
+  isAdmin(): boolean {
+    return this.hasRole(['admin', 'super_admin']);
+  }
+
+  // Check if user is super admin
+  isSuperAdmin(): boolean {
+    return this.hasRole('super_admin');
+  }
+
+  // Check if user exists by email
+  async findUserByEmail(email: string): Promise<UserProfile | null> {
+    try {
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', email));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        const userDoc = querySnapshot.docs[0];
+        return {
+          ...userDoc.data(),
+          uid: userDoc.id
+        } as UserProfile;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error finding user by email:', error);
+      return null;
+    }
+  }
+
+  // Sign up with role (for staff management)
+  async signUpWithRole(name: string, email: string, password: string, role: string): Promise<UserProfile> {
+    try {
+      // Map role to proper format
+      const roleMapping: { [key: string]: UserRole } = {
+        'Video Editor': 'video_editor',
+        'Script Writer': 'script_writer',
+        'Thumbnail Maker': 'thumbnail_maker',
+        'Uploader': 'uploader',
+        'Campaign Manager': 'admin',
+        'Finance': 'admin',
+        'Admin': 'admin',
+        'Super Admin': 'super_admin'
+      };
+
+      const dbRole = roleMapping[role] || role.toLowerCase().replace(' ', '_');
+
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      const userProfile: UserProfile = {
+        uid: user.uid,
+        email: email,
+        name: name,
+        role: dbRole as UserRole,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+        isActive: true
+      };
+
+      // Save to Firestore
+      await setDoc(doc(db, 'users', user.uid), userProfile);
+
+      // Save to Realtime Database
+      await set(ref(database, 'users/' + user.uid), userProfile);
+
+      return userProfile;
+    } catch (error: any) {
+      console.error('Sign up with role error:', error);
+      throw new Error(this.getAuthErrorMessage(error.code));
+    }
+  }
+}
+
+// Create singleton instance
+const authService = new AuthService();
 export default authService;

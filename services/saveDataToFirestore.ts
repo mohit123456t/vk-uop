@@ -1,10 +1,10 @@
-import { firestore } from './firebase';
+import { db } from './firebase';
 import { collection, addDoc } from 'firebase/firestore';
 
 // Firestore me data save karne ka function
 export async function saveDataToFirestore(collectionName, data) {
   try {
-    const docRef = await addDoc(collection(firestore, collectionName), data);
+    const docRef = await addDoc(collection(db, collectionName), data);
     console.log('Document written with ID: ', docRef.id);
     return docRef.id;
   } catch (e) {

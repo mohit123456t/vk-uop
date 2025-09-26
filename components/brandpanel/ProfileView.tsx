@@ -2,18 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
-const SettingsView = ({ user, profile: initialProfile, onUpdateProfile }) => {
+const ProfileView = ({ user, profile: initialProfile, onUpdateProfile }) => {
     const [profile, setProfile] = useState({
         name: '',
         email: '',
         brandName: '',
         brandId: '',
+        ownerName: '',
         phone: '',
-        company: '',
-        website: '',
-        industry: '',
-        budget: '',
-        goals: '',
+        address: '',
         lastUpdated: '',
     });
     const [newPassword, setNewPassword] = useState('');
@@ -44,27 +41,32 @@ const SettingsView = ({ user, profile: initialProfile, onUpdateProfile }) => {
             try {
                 setLoading(true);
 
-                // If initialProfile is provided, use it first
-                if (initialProfile && Object.keys(initialProfile).length > 0) {
-                    console.log('Using initial profile data:', initialProfile);
-                    setProfile({
-                        ...initialProfile,
-                        lastUpdated: initialProfile.lastUpdated || '',
-                    });
-                    setLoading(false);
-                    return;
-                }
+                const firestoreDoc = doc(db, `users/${user.uid}/profile/main`);
+                const firestoreSnap = await getDoc(firestoreDoc);
+                const firestoreData = firestoreSnap.exists() ? firestoreSnap.data() : {};
 
-                // Otherwise fetch from Firestore
-                const profileDoc = doc(db, `users/${user.uid}/profile/main`);
-                const profileSnap = await getDoc(profileDoc);
-                if (profileSnap.exists()) {
-                    const data = profileSnap.data();
-                    setProfile({
-                        ...data,
-                        lastUpdated: data.lastUpdated || '',
-                    });
-                }
+                // Merge initialProfile with Firestore data
+                const mergedProfile = {
+                    ...firestoreData,
+                    ...initialProfile,
+                };
+
+                // Ensure essential fields are set
+                const profileWithBrandId = {
+                    name: mergedProfile.name || '',
+                    email: mergedProfile.email || user?.email || '',
+                    brandName: mergedProfile.brandName || '',
+                    brandId: mergedProfile.brandId || firestoreData.brandId || Math.floor(1000 + Math.random() * 9000).toString(),
+                    ownerName: mergedProfile.ownerName || '',
+                    phone: mergedProfile.phone || '',
+                    address: mergedProfile.address || '',
+                    lastUpdated: mergedProfile.lastUpdated || firestoreData.lastUpdated || '',
+                };
+
+                console.log('Using merged profile data:', profileWithBrandId);
+                setProfile(profileWithBrandId);
+                setLoading(false);
+                return;
             } catch (err) {
                 setMessage('Failed to load profile.');
                 setMessageType('error');
@@ -131,12 +133,12 @@ const SettingsView = ({ user, profile: initialProfile, onUpdateProfile }) => {
             {/* Header */}
             <div className="mb-8 text-center sm:text-left">
                 <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-                    Account Settings
+                    Profile Settings
                 </h1>
                 <p className="text-slate-500 mt-1 text-sm">Manage your profile and security preferences</p>
 
                 {/* Welcome Message for New Users */}
-                {profile.isProfileComplete && (
+                {profile.name && profile.email && profile.brandId && (
                     <div className="mt-4 p-4 bg-green-50 border-l-4 border-green-400 rounded-r-xl">
                         <div className="flex">
                             <div className="flex-shrink-0">
@@ -179,16 +181,13 @@ const SettingsView = ({ user, profile: initialProfile, onUpdateProfile }) => {
                     ) : (
                         <form className="space-y-5">
                             {[
+                                { label: "Email Address", name: "email", type: "email", disabled: true },
                                 { label: "Full Name", name: "name", type: "text" },
-                                { label: "Email Address", name: "email", type: "email" },
-                                { label: "Brand Name", name: "brandName", type: "text" },
-                                { label: "Brand ID (4 digits)", name: "brandId", type: "text", placeholder: "Enter 4-digit brand ID" },
-                                { label: "Phone Number", name: "phone", type: "tel" },
-                                { label: "Company", name: "company", type: "text" },
-                                { label: "Website", name: "website", type: "url" },
-                                { label: "Industry", name: "industry", type: "text" },
-                                { label: "Monthly Budget", name: "budget", type: "text" },
-                                { label: "Campaign Goals", name: "goals", type: "textarea" },
+                                { label: "Brand Name", name: "brandName", type: "text", disabled: true },
+                                { label: "Brand ID (4 digits)", name: "brandId", type: "text", placeholder: "Auto-generated", disabled: true },
+                                { label: "Owner Name", name: "ownerName", type: "text" },
+                                { label: "Mobile Number", name: "phone", type: "tel" },
+                                { label: "Address", name: "address", type: "textarea" },
                             ].map(field => (
                                 <div key={field.name}>
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -209,7 +208,12 @@ const SettingsView = ({ user, profile: initialProfile, onUpdateProfile }) => {
                                             name={field.name}
                                             value={profile[field.name] || ''}
                                             onChange={handleChange}
-                                            className="w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition placeholder:text-slate-400"
+                                            disabled={field.disabled}
+                                            className={`w-full px-4 py-3 border rounded-xl outline-none transition placeholder:text-slate-400 ${
+                                                field.disabled
+                                                    ? 'bg-slate-100 border-slate-300 text-slate-500 cursor-not-allowed'
+                                                    : 'bg-slate-50 border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                                            }`}
                                             placeholder={field.placeholder || `Enter your ${field.label.toLowerCase()}`}
                                         />
                                     )}
@@ -313,4 +317,4 @@ const SettingsView = ({ user, profile: initialProfile, onUpdateProfile }) => {
     );
 };
 
-export default SettingsView
+export default ProfileView;

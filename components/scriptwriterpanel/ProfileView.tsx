@@ -1,73 +1,153 @@
-import React, { useState, useEffect } from 'react';
-import authService, { UserProfile } from '../../services/authService';
+import React, { useState } from 'react';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../services/firebase';
+import { ICONS } from '../../constants';
 
-const ProfileView = () => {
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-    const [loading, setLoading] = useState(true);
+const ProfileView = ({ userProfile }) => {
+    const [formData, setFormData] = useState({
+        name: userProfile?.name || '',
+        email: userProfile?.email || '',
+        phone: userProfile?.mobileNumber || '',
+        address: userProfile?.address || ''
+    });
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState('');
 
-    useEffect(() => {
-        // Subscribe to auth state changes to keep the profile synced
-        const unsubscribe = authService.onAuthStateChange((state) => {
-            setUserProfile(state.userProfile);
-            setLoading(state.isLoading);
-        });
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
 
-        // Cleanup subscription on component unmount
-        return () => unsubscribe();
-    }, []);
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSaving(true);
+        setSaveMessage('');
 
-    const formatRole = (role: string | undefined) => {
-        if (!role) return '';
-        return role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
-
-    if (loading) {
-        return (
-            <div className="flex flex-col justify-center items-center h-screen w-full">
-                <div className="animate-spin rounded-full h-24 w-24 border-b-4 border-slate-900"></div>
-                <p className="text-center mt-6 text-xl font-semibold text-slate-700">Loading Profile...</p>
-            </div>
-        );
-    }
-
-    if (!userProfile) {
-        return <p className="text-center text-red-500 text-xl p-8">Could not load user profile. Please try logging in again.</p>;
-    }
+        try {
+            if (userProfile?.uid) {
+                await updateDoc(doc(db, 'users', userProfile.uid), {
+                    name: formData.name,
+                    email: formData.email,
+                    mobileNumber: formData.phone,
+                    address: formData.address
+                });
+                setSaveMessage('Profile updated successfully!');
+            }
+        } catch (error) {
+            console.error('Error updating profile:', error);
+            setSaveMessage('Error updating profile. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     return (
-        <div className="p-8 bg-gray-50 min-h-screen">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-4xl mx-auto">
-                <div className="flex items-center space-x-6 mb-8">
-                    <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-4xl font-bold">
-                        {userProfile.name?.charAt(0) || 'U'}
-                    </div>
-                    <div>
-                        <h1 className="text-4xl font-extrabold text-gray-800">{userProfile.name}</h1>
-                        <p className="text-xl text-gray-500">{userProfile.email}</p>
-                        <p className="text-lg text-indigo-600 font-semibold mt-1 bg-indigo-100 px-3 py-1 rounded-full inline-block">
-                            {formatRole(userProfile.role)}
-                        </p>
-                    </div>
-                </div>
-
-                <div className="border-t border-gray-200 pt-8">
-                    <h2 className="text-2xl font-bold text-gray-700 mb-4">Account Details</h2>
-                    <div className="space-y-4">
-                        <div className="bg-slate-50 p-4 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">User ID</p>
-                            <p className="text-slate-800 font-mono text-sm">#{userProfile.uid.substring(0, 6)}</p>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">Member Since</p>
-                            <p className="text-slate-800">{new Date(userProfile.createdAt).toLocaleDateString()}</p>
-                        </div>
-                         <div className="bg-slate-50 p-4 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">Last Login</p>
-                            <p className="text-slate-800">{new Date(userProfile.lastLoginAt).toLocaleString()}</p>
-                        </div>
-                    </div>
-                </div>
+        <div className="space-y-8 max-w-4xl mx-auto">
+            <div>
+                <h1 className="text-2xl font-bold text-slate-900">Your Profile</h1>
+                <p className="text-slate-600">Manage your portfolio, skills, and account security.</p>
             </div>
+
+            {saveMessage && (
+                <div className={`p-4 rounded-lg ${saveMessage.includes('success') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
+                    {saveMessage}
+                </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
+                        <span className="mr-2">{ICONS.userCircle}</span>
+                        Name
+                    </h3>
+                    <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        placeholder="Enter your name"
+                    />
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
+                        <span className="mr-2">{ICONS.mail}</span>
+                        Email
+                    </h3>
+                    <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        placeholder="Enter your email"
+                    />
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
+                        <span className="mr-2">{ICONS.phone}</span>
+                        Phone
+                    </h3>
+                    <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        placeholder="Enter your phone number"
+                    />
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 md:col-span-2 lg:col-span-3">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
+                        <span className="mr-2">{ICONS.layout}</span>
+                        Address
+                    </h3>
+                    <input
+                        type="text"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
+                        placeholder="Enter your address"
+                    />
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg text-slate-800 mb-4">Account Info</h3>
+                    <div className="space-y-2">
+                        <div className="text-sm text-slate-600">
+                            <span className="font-medium">Role:</span> Script Writer
+                        </div>
+                        <div className="text-sm text-slate-600">
+                            <span className="font-medium">ID:</span> {userProfile?.uid?.substring(0, 8) || 'N/A'}
+                        </div>
+                        <div className="text-sm text-slate-600">
+                            <span className="font-medium">Joined:</span> {userProfile?.createdAt ? new Date(userProfile.createdAt).toLocaleDateString() : 'N/A'}
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 flex items-end">
+                    <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="w-full bg-slate-900 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    >
+                        {isSaving ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                Saving...
+                            </>
+                        ) : (
+                            <>
+                                <span className="mr-2">{ICONS.check}</span>
+                                Save Changes
+                            </>
+                        )}
+                    </button>
+                </div>
+            </form>
         </div>
     );
 };

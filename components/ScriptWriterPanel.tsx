@@ -1,114 +1,146 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../services/authService';
 import DashboardView from './scriptwriterpanel/DashboardView';
 import TasksView from './scriptwriterpanel/TasksView';
-import CollaborationView from './scriptwriterpanel/CollaborationView';
 import PaymentsView from './scriptwriterpanel/PaymentsView';
 import ProfileView from './scriptwriterpanel/ProfileView';
+import CollaborationView from './scriptwriterpanel/CollaborationView';
 import { ICONS } from '../constants';
-import authService from '../services/authService';
 
-const NavItem = ({ icon, label, active, onClick, ...props }) => (
-    <button {...props} onClick={onClick} className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${active ? 'bg-slate-700/50 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}`}>
+const NavItem = ({ icon, label, active, onClick }) => (
+    <button
+        onClick={onClick}
+        className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${active ? 'bg-slate-700/50 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'} ${!label ? 'justify-center' : ''}`}
+        aria-label={label || 'Sidebar item'}
+        tabIndex={0}
+    >
         <span className="mr-3">{icon}</span>
-        {label}
+        {label ? <span>{label}</span> : null}
     </button>
 );
 
 const ScriptWriterPanel = () => {
     const navigate = useNavigate();
-    const [activeView, setActiveView] = useState('dashboard');
-    const [userProfile, setUserProfile] = useState<any>(null);
-
-    const handleLogout = async () => {
-        try {
-            await authService.signOut();
-            navigate('/login');
-        } catch (error) {
-            console.error("Failed to log out:", error);
-            alert('Logout failed. Please try again.');
-        }
-    };
+    const [userProfile, setUserProfile] = useState(null);
+    const [activeView, setActiveView] = useState(() => localStorage.getItem('scriptWriterActiveView') || 'dashboard');
+    const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
     useEffect(() => {
-        const unsubscribe = authService.onAuthStateChange((authState) => {
-            if (authState.isAuthenticated && authState.userProfile) {
-                if (authState.userProfile.status !== 'Active') {
-                    authService.signOut();
-                    navigate('/login');
-                    alert('Your account has been deactivated. Please contact an administrator.');
-                } else {
-                    setUserProfile(authState.userProfile);
+        const unsubscribe = authService.onAuthStateChange((state) => {
+            if (state.isAuthenticated && state.userProfile) {
+                if (state.userProfile.role === 'script_writer') {
+                    setUserProfile(state.userProfile);
                 }
-            } else {
-                navigate('/login');
             }
         });
 
-        return () => unsubscribe();
-    }, [navigate]);
+        return unsubscribe;
+    }, []);
 
-    const navItems = [
-        { id: 'dashboard', label: 'Dashboard', icon: ICONS.layout },
-        { id: 'tasks', label: 'My Tasks', icon: ICONS.clipboard },
-        { id: 'collaboration', label: 'Collaboration', icon: ICONS.users },
-        { id: 'payments', label: 'Payments', icon: ICONS.currencyRupee },
-        { id: 'performance', label: 'Performance', icon: ICONS.trendingUp },
-    ];
+    useEffect(() => {
+        localStorage.setItem('scriptWriterActiveView', activeView);
+    }, [activeView]);
 
-    const secondaryNavItems = [
-        { id: 'profile', label: 'Profile', icon: ICONS.userCircle },
-    ];
+    const handleLogout = async () => {
+        try {
+            await authService.logout();
+            navigate('/login');
+        } catch (error) {
+            console.error('Logout error:', error);
+        }
+    };
 
     const renderView = () => {
         switch (activeView) {
+            case 'dashboard':
+                return <DashboardView userProfile={userProfile} />;
             case 'tasks':
-                return <TasksView />;
-            case 'collaboration':
-                return <CollaborationView />;
+                return <TasksView userProfile={userProfile} />;
             case 'payments':
-                return <PaymentsView />;
-            case 'performance':
-                return <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4">Performance Tracking</h3>
-                    <p className="text-slate-600">Performance metrics will be displayed here.</p>
-                </div>;
+                return <PaymentsView userProfile={userProfile} />;
             case 'profile':
                 return <ProfileView userProfile={userProfile} />;
-            case 'dashboard':
+            case 'collaboration':
+                return <CollaborationView userProfile={userProfile} />;
             default:
-                return <DashboardView onEditTask={() => setActiveView('tasks')} />;
+                return <DashboardView userProfile={userProfile} />;
         }
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 font-sans text-slate-800">
-            <aside className="w-64 flex-shrink-0 bg-slate-900 text-slate-300 flex flex-col no-scrollbar">
-                <div className="h-16 flex items-center px-6 border-b border-slate-800 flex-shrink-0">
-                    <div className="text-white font-bold text-lg">Script Writer Panel</div>
+        <div className="flex h-screen bg-slate-900 text-white">
+            <aside className={`bg-slate-800 border-r border-slate-700 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'} flex flex-col flex-shrink-0`}>
+                <div className="p-4 border-b border-slate-700">
+                    <div className="flex items-center justify-between">
+                        <h2 className={`font-bold text-lg ${sidebarCollapsed ? 'hidden' : 'block'}`}>Script Writer</h2>
+                        <button
+                            onClick={() => setSidebarCollapsed(p => !p)}
+                            className="text-slate-400 hover:text-white p-1"
+                            aria-label="Toggle sidebar"
+                        >
+                            {sidebarCollapsed ? ICONS.menu : ICONS.x}
+                        </button>
+                    </div>
                 </div>
-                <nav className="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-                    {navItems.map(item => (
-                        <NavItem key={item.id} icon={item.icon} label={item.label} active={activeView === item.id} onClick={() => setActiveView(item.id)} />
-                    ))}
+
+                <nav className="flex-1 p-4 space-y-2">
+                    <NavItem
+                        icon={ICONS.chart}
+                        label="Dashboard"
+                        active={activeView === 'dashboard'}
+                        onClick={() => setActiveView('dashboard')}
+                    />
+                    <NavItem
+                        icon={ICONS.clipboard}
+                        label="Tasks"
+                        active={activeView === 'tasks'}
+                        onClick={() => setActiveView('tasks')}
+                    />
+                    <NavItem
+                        icon={ICONS.money}
+                        label="Payments"
+                        active={activeView === 'payments'}
+                        onClick={() => setActiveView('payments')}
+                    />
+                    <NavItem
+                        icon={ICONS.users}
+                        label="Profile"
+                        active={activeView === 'profile'}
+                        onClick={() => setActiveView('profile')}
+                    />
+                    <NavItem
+                        icon={ICONS.message}
+                        label="Collaboration"
+                        active={activeView === 'collaboration'}
+                        onClick={() => setActiveView('collaboration')}
+                    />
                 </nav>
-                <div className="px-4 py-4 border-t border-slate-800 flex-shrink-0">
-                    {secondaryNavItems.map(item => (
-                        <NavItem key={item.id} icon={item.icon} label={item.label} active={activeView === item.id} onClick={() => setActiveView(item.id)} />
-                    ))}
-                    <button onClick={handleLogout} className="flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg text-slate-300 hover:bg-slate-800 hover:text-white mt-2">
+
+                <div className="p-4 border-t border-slate-700">
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center w-full text-left px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+                    >
                         <span className="mr-3">{ICONS.logout}</span>
-                        Logout
+                        {!sidebarCollapsed && <span>Logout</span>}
                     </button>
                 </div>
             </aside>
-            <div className="flex-1 flex flex-col overflow-hidden">
+
+            <main className="flex-1 flex flex-col overflow-hidden">
                 <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
-                    <h1 className="text-xl font-bold text-slate-900 capitalize">{activeView.replace('_', ' ')}</h1>
-                    <div className="font-semibold">{userProfile?.name?.toUpperCase()}</div>
+                    <div className="flex items-center space-x-4">
+                        <h1 className="text-xl font-bold text-slate-900 capitalize">{activeView.replace('_', ' ')}</h1>
+                    </div>
+                    <div className="flex items-center space-x-4">
+                        <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center font-bold text-slate-600">
+                            {userProfile?.name?.charAt(0)}
+                        </div>
+                    </div>
                 </header>
-                <main className="flex-1 overflow-y-auto bg-slate-100 p-8">{renderView()}</main>
-            </div>
+                <div className="flex-1 overflow-y-auto bg-slate-100 p-8">{renderView()}</div>
+            </main>
         </div>
     );
 };
