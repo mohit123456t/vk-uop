@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ICONS } from '../../constants';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore'; // Removed orderBy
 import { db } from '../../services/firebase';
 
 const PaymentsView = ({ userProfile }) => {
@@ -23,14 +23,21 @@ const PaymentsView = ({ userProfile }) => {
             setLoading(true);
             const paymentsQuery = query(
                 collection(db, 'payments'),
-                where('scriptWriterEmail', '==', userProfile?.email),
-                orderBy('date', 'desc')
+                where('scriptWriterEmail', '==', userProfile?.email)
+                // orderBy('date', 'desc') // <-- This was causing the index error
             );
             const paymentsSnapshot = await getDocs(paymentsQuery);
-            const paymentsData = paymentsSnapshot.docs.map(doc => ({
+            let paymentsData = paymentsSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+
+            // Sort the data on the client-side instead of in the query
+            paymentsData.sort((a, b) => {
+                const dateA = a.date ? new Date(a.date).getTime() : 0;
+                const dateB = b.date ? new Date(b.date).getTime() : 0;
+                return dateB - dateA; // For descending order
+            });
 
             setPayments(paymentsData);
 
@@ -69,8 +76,8 @@ const PaymentsView = ({ userProfile }) => {
     return (
         <div className="space-y-8">
             <div>
-                <h1 className="text-2xl font-bold text-slate-900">Earnings & Performance</h1>
-                <p className="text-slate-600">Track your payments, bonuses, and performance metrics.</p>
+                <h1 className="text-2xl font-bold text-slate-900">Earnings</h1>
+                <p className="text-slate-600">Track your payments and bonuses.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -88,7 +95,7 @@ const PaymentsView = ({ userProfile }) => {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8">
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200/80">
                     <h3 className="font-bold text-lg p-6 border-b text-slate-800">Payment History</h3>
                     {loading ? (
@@ -120,23 +127,6 @@ const PaymentsView = ({ userProfile }) => {
                             </tbody>
                         </table>
                     )}
-                </div>
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 p-6">
-                    <h3 className="font-bold text-lg mb-4 text-slate-800">Performance Report</h3>
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Avg. Approval Rate</span>
-                            <span className="text-sm font-bold text-green-600">92%</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Viral Scripts (1M+ Views)</span>
-                            <span className="text-sm font-bold">3</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                            <span className="text-sm font-medium">Avg. Time to Approval</span>
-                            <span className="text-sm font-bold">1.5 Days</span>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

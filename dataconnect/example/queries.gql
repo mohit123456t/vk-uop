@@ -1,0 +1,33 @@
+mutation CreateUser @auth(level: USER) {
+  user_insert(data: {
+    displayName: "New User",
+    email: "newuser@example.com"
+  })
+}
+
+query GetMovies @auth(level: PUBLIC) {
+  movies {
+    id
+    title
+    year
+  }
+}
+
+mutation AddMovieToList {
+  movieListEntry_insert(data: {
+    movieListId: "123e4567-e89b-12d3-a456-426614174000",
+    movieId: "890a1234-b567-89c0-d123-456789abcdef",
+    position: 1
+  })
+}
+
+query GetUserReviews @auth(level: USER) {
+  reviews(where: {userId: {eq_expr: "auth.uid"}}) {
+    id
+    rating
+    text
+    movie {
+      title
+    }
+  }
+}

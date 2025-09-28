@@ -1,245 +1,169 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../services/firebase';
 import { ICONS } from '../../constants';
 
-// StatusBadge component - Enhanced
+// Enhanced StatusBadge to handle all states
 const StatusBadge = ({ status }) => {
-    const baseClasses = "text-xs font-semibold px-3 py-1 rounded-full shadow-sm";
-    const statusClasses = {
-        "Active": "bg-gradient-to-r from-green-400 to-green-500 text-white animate-pulse",
-        "Completed": "bg-gradient-to-r from-slate-400 to-slate-500 text-white",
-        "Paused": "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white",
-        "Pending": "bg-gradient-to-r from-orange-400 to-orange-500 text-white",
+    const statusInfo = {
+        "Active": { text: "Active", icon: ICONS.play, classes: "bg-green-100 text-green-800" },
+        "Completed": { text: "Completed", icon: ICONS.check, classes: "bg-slate-100 text-slate-800" },
+        "Paused": { text: "Paused", icon: ICONS.pause, classes: "bg-yellow-100 text-yellow-800" },
+        "Pending Approval": { text: "Pending Approval", icon: ICONS.clock, classes: "bg-orange-100 text-orange-800" },
+        "Rejected": { text: "Rejected", icon: ICONS.x, classes: "bg-red-100 text-red-800" },
+        "Draft": { text: "Draft", icon: ICONS.pencil, classes: "bg-blue-100 text-blue-800" },
     };
-    return <span className={`${baseClasses} ${statusClasses[status] || statusClasses["Pending"]}`}>{status}</span>;
-};
-
-// CampaignCard component - Fully Enhanced
-const CampaignCard = ({ campaign, onSelectCampaign, onCreateOrder }) => {
-    const totalLikes = campaign.reels.reduce((sum, reel) => sum + (reel.likes || 0), 0);
-    const totalComments = campaign.reels.reduce((sum, reel) => sum + (reel.comments || 0), 0);
-    const totalShares = campaign.reels.reduce((sum, reel) => sum + (reel.shares || 0), 0);
-    const totalEngagement = totalLikes + totalComments + totalShares;
-    const avgViews = campaign.reels.length > 0 ? Math.round(campaign.views / campaign.reels.length) : 0;
-    const engagementRate = campaign.views > 0 ? ((totalEngagement / campaign.views) * 100).toFixed(1) : 0;
-
-    // Get latest upload date
-    const lastUpdated = campaign.reels.length > 0 
-        ? new Date(Math.max(...campaign.reels.map(r => new Date(r.uploadedAt)))).toLocaleDateString()
-        : 'Never';
+    const currentStatus = statusInfo[status] || { text: status, icon: "", classes: "bg-gray-100 text-gray-800" };
 
     return (
-        <div 
-            className="bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 group"
-            style={{ animation: 'fadeInUp 0.5s ease-out' }}
-        >
-            {/* Header */}
-            <div className="flex justify-between items-start mb-5">
-                <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                        {campaign.name}
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1">ID: <span className="font-mono">{campaign.id}</span></p>
-                </div>
-                <StatusBadge status={campaign.status} />
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-3 bg-blue-50 rounded-xl">
-                    <p className="text-2xl sm:text-3xl font-bold text-blue-600">
-                        {campaign.views.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">Total Views</p>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-xl">
-                    <p className="text-2xl sm:text-3xl font-bold text-green-600">
-                        {totalEngagement.toLocaleString()}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">Engagement</p>
-                </div>
-                <div className="text-center p-3 bg-purple-50 rounded-xl">
-                    <p className="text-2xl sm:text-3xl font-bold text-purple-600">
-                        {engagementRate}%
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">Eng. Rate</p>
-                </div>
-            </div>
-
-            {/* Details */}
-            <div className="space-y-3 mb-6">
-                <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Reels Count:</span>
-                    <span className="font-semibold text-slate-800">{campaign.reelsCount}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Avg Views/Reel:</span>
-                    <span className="font-semibold text-slate-800">{avgViews.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Last Updated:</span>
-                    <span className="font-semibold text-slate-800">{lastUpdated}</span>
-                </div>
-            </div>
-
-            {/* Action Buttons - SEXY BUTTONS JO TUM CHAHE HO! */}
-            <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
-                <button
-                    onClick={() => onSelectCampaign(campaign)}
-                    className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-bold py-3 px-4 rounded-xl hover:from-blue-600 hover:to-blue-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
-                >
-                    📊 View Analytics
-                </button>
-                <button
-                    onClick={() => onCreateOrder(campaign)}
-                    className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-3 px-4 rounded-xl hover:from-green-600 hover:to-emerald-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
-                >
-                    🛒 Create Order
-                </button>
-            </div>
-        </div>
+        <span className={`inline-flex items-center text-sm font-semibold px-4 py-2 rounded-full ${currentStatus.classes}`}>
+            <span className="mr-2 text-lg">{currentStatus.icon}</span>
+            {currentStatus.text}
+        </span>
     );
 };
 
-// Empty State Component
-const EmptyState = ({ onNewCampaign }) => (
-    <div className="text-center py-16 bg-gradient-to-b from-slate-50 to-white rounded-2xl">
-        <div className="w-24 h-24 mx-auto mb-4 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
-            <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
+// A specific alert component for rejected campaigns
+const RejectedAlert = ({ rejectionReason }) => (
+    <div className="p-4 mb-6 bg-red-50 border-l-4 border-red-500 rounded-r-lg">
+        <div className="flex items-center">
+            <div className="text-red-500 mr-3">{ICONS.xCircle}</div>
+            <div>
+                <h4 className="font-bold text-red-800">Campaign Rejected</h4>
+                <p className="text-red-700 text-sm">
+                    {rejectionReason || "This campaign did not meet our guidelines and has been rejected by the admin."}
+                </p>
+            </div>
         </div>
-        <h3 className="text-xl font-bold text-slate-800 mb-2">No campaigns yet</h3>
-        <p className="text-slate-500 mb-6 max-w-md mx-auto">Create your first campaign to start tracking performance and managing your marketing efforts.</p>
-        <button
-            onClick={onNewCampaign}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl text-sm"
-        >
-            🚀 Create New Campaign
-        </button>
     </div>
 );
 
-// CampaignsView component - FULLY CARD BASED!
-const CampaignsView = () => {
-    const [campaigns, setCampaigns] = useState([
-        {
-            id: "CMP-001",
-            name: "Summer Sale Blitz",
-            status: "Active",
-            reels: [
-                { id: "R-001", likes: 1500, comments: 89, shares: 45, views: 25000, uploadedAt: "2024-06-01T12:00:00.000Z", status: "Live" },
-                { id: "R-002", likes: 2800, comments: 156, shares: 89, views: 42000, uploadedAt: "2024-06-05T12:00:00.000Z", status: "Live" },
-                { id: "R-003", likes: 3200, comments: 203, shares: 124, views: 58000, uploadedAt: "2024-06-10T12:00:00.000Z", status: "Live" }
-            ],
-            reelsCount: 3,
-            views: 125000
-        },
-        {
-            id: "CMP-002",
-            name: "Back to School",
-            status: "Completed",
-            reels: [
-                { id: "R-004", likes: 800, comments: 45, shares: 23, views: 15000, uploadedAt: "2024-05-15T12:00:00.000Z", status: "Live" },
-                { id: "R-005", likes: 1200, comments: 67, shares: 34, views: 22000, uploadedAt: "2024-05-20T12:00:00.000Z", status: "Live" }
-            ],
-            reelsCount: 2,
-            views: 37000
-        },
-        {
-            id: "CMP-003",
-            name: "Holiday Special",
-            status: "Paused",
-            reels: [
-                { id: "R-006", likes: 500, comments: 23, shares: 12, views: 8000, uploadedAt: "2024-07-01T12:00:00.000Z", status: "Processing" }
-            ],
-            reelsCount: 1,
-            views: 8000
+// View for when a campaign is pending
+const PendingView = () => (
+    <div className="p-4 mb-6 bg-orange-50 border-l-4 border-orange-500 rounded-r-lg">
+        <div className="flex items-center">
+            <div className="text-orange-500 mr-3">{ICONS.clock}</div>
+            <div>
+                <h4 className="font-bold text-orange-800">Awaiting Approval</h4>
+                <p className="text-orange-700 text-sm">
+                    This campaign is currently under review by our team. You will be notified once it is approved.
+                </p>
+            </div>
+        </div>
+    </div>
+);
+
+const CampaignDetailView = ({ campaignId, onClose, onCreateOrder }) => {
+    const [campaign, setCampaign] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (!campaignId) {
+            setLoading(false);
+            return;
         }
-    ]);
 
-    const handleSelectCampaign = (campaign) => {
-        console.log("Campaign selected:", campaign);
-        // Navigate to campaign detail view
-    };
+        setLoading(true);
+        const campaignRef = doc(db, 'campaigns', campaignId);
+        const unsubscribe = onSnapshot(campaignRef, (doc) => {
+            if (doc.exists()) {
+                setCampaign({ id: doc.id, ...doc.data() });
+            } else {
+                console.log("No such campaign!");
+                setCampaign(null); // Handle case where campaign is deleted
+            }
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching campaign details:", error);
+            alert("Could not load campaign details. The campaign may have been deleted.");
+            setLoading(false);
+            onClose();
+        });
 
-    const handleNewCampaign = () => {
-        console.log("New campaign created");
-        // Show create campaign modal/form
-    };
+        return () => unsubscribe();
+    }, [campaignId, onClose]);
 
-    const handleCreateOrder = (campaign) => {
-        console.log("Order created for campaign:", campaign);
-        // Navigate to order creation page
-    };
+    if (loading) {
+        return <div className="p-8 text-center">Loading details...</div>;
+    }
+
+    if (!campaign) {
+        return (
+            <div className="p-8 text-center">
+                <h3 className="text-xl font-semibold">Campaign Not Found</h3>
+                <p className="text-slate-500">It might have been moved or deleted.</p>
+                <button onClick={onClose} className="mt-4 px-4 py-2 bg-slate-200 rounded-lg">Close</button>
+            </div>
+        );
+    }
 
     return (
-        <div className="animate-fade-in p-4 sm:p-6">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2">
-                        Your Campaigns
-                    </h1>
-                    <p className="text-slate-500">Manage and track all your marketing campaigns</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+                {/* Header */}
+                <div className="p-6 border-b flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-bold text-slate-900">{campaign.name}</h2>
+                        <p className="text-sm text-slate-500">Campaign Details</p>
+                    </div>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600">{ICONS.x}</button>
                 </div>
-                <button 
-                    onClick={handleNewCampaign} 
-                    className="mt-4 sm:mt-0 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 active:scale-95 transform transition-all duration-200 shadow-lg hover:shadow-xl flex items-center text-sm"
-                >
-                    <span className="mr-2 text-lg">{ICONS.plus}</span>
-                    New Campaign
-                </button>
-            </div>
 
-            {/* Campaign Cards Grid */}
-            {campaigns.length === 0 ? (
-                <EmptyState onNewCampaign={handleNewCampaign} />
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {campaigns.map((campaign, index) => (
-                        <div key={campaign.id} style={{ animationDelay: `${index * 100}ms` }}>
-                            <CampaignCard 
-                                campaign={campaign} 
-                                onSelectCampaign={handleSelectCampaign} 
-                                onCreateOrder={handleCreateOrder} 
-                            />
-                        </div>
-                    ))}
-                </div>
-            )}
+                {/* Body */}
+                <div className="p-6">
+                    <div className="mb-6 flex justify-center">
+                        <StatusBadge status={campaign.status} />
+                    </div>
 
-            {/* Stats Summary Card */}
-            {campaigns.length > 0 && (
-                <div className="mt-8 bg-white rounded-2xl shadow-lg border border-slate-200/60 p-6">
-                    <h3 className="text-lg font-bold text-slate-900 mb-4">📊 Campaign Summary</h3>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                        <div className="text-center p-4 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl text-white">
-                            <p className="text-2xl font-bold">{campaigns.length}</p>
-                            <p className="text-sm opacity-90">Total Campaigns</p>
+                    {campaign.status === 'Rejected' && <RejectedAlert rejectionReason={campaign.rejectionReason} />}
+                    {campaign.status === 'Pending Approval' && <PendingView />}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-slate-50 p-4 rounded-lg">
+                            <h4 className="font-semibold text-slate-800 mb-2">Key Information</h4>
+                            <ul className="space-y-2 text-sm">
+                                <li><strong>Brand:</strong> {campaign.brandName}</li>
+                                <li><strong>Budget:</strong> ₹{campaign.budget?.toLocaleString()}</li>
+                                <li><strong>Target Reels:</strong> {campaign.expectedReels}</li>
+                                <li><strong>Deadline:</strong> {new Date(campaign.deadline).toLocaleDateString()}</li>
+                            </ul>
                         </div>
-                        <div className="text-center p-4 bg-gradient-to-br from-green-500 to-green-600 rounded-xl text-white">
-                            <p className="text-2xl font-bold">
-                                {campaigns.reduce((sum, c) => sum + c.reelsCount, 0)}
-                            </p>
-                            <p className="text-sm opacity-90">Total Reels</p>
-                        </div>
-                        <div className="text-center p-4 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl text-white">
-                            <p className="text-2xl font-bold">
-                                {campaigns.reduce((sum, c) => sum + c.views, 0).toLocaleString()}
-                            </p>
-                            <p className="text-sm opacity-90">Total Views</p>
-                        </div>
-                        <div className="text-center p-4 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl text-white">
-                            <p className="text-2xl font-bold">
-                                {campaigns.filter(c => c.status === 'Active').length}
-                            </p>
-                            <p className="text-sm opacity-90">Active Campaigns</p>
+
+                        <div className="bg-slate-50 p-4 rounded-lg">
+                            <h4 className="font-semibold text-slate-800 mb-2">Performance</h4>
+                             <ul className="space-y-2 text-sm">
+                                <li><strong>Total Views:</strong> {(campaign.totalViews || 0).toLocaleString()}</li>
+                                {/* Add more performance metrics as needed */}
+                            </ul>
                         </div>
                     </div>
+                    
+                    <div className="mt-6">
+                        <h4 className="font-semibold text-slate-800 mb-2">Description</h4>
+                        <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded-lg">
+                            {campaign.description || "No description provided."}
+                        </p>
+                    </div>
                 </div>
-            )}
+
+                {/* Footer with actions */}
+                <div className="p-6 bg-slate-50 border-t flex justify-end space-x-3">
+                    <button onClick={onClose} className="px-6 py-2 font-semibold text-slate-700 bg-slate-200 rounded-lg hover:bg-slate-300">
+                        Close
+                    </button>
+                    {campaign.status === 'Active' && (
+                         <button 
+                            onClick={() => onCreateOrder(campaign)}
+                            className="px-6 py-2 font-semibold text-white bg-green-600 rounded-lg hover:bg-green-700 shadow-lg flex items-center"
+                        >
+                            <span className="mr-2">{ICONS.plus}</span>
+                            Add New Order
+                        </button>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
 
-export default CampaignsView;
+export default CampaignDetailView;

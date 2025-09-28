@@ -1,65 +1,21 @@
 import React from 'react';
 import { ICONS } from '../../constants';
 
-// StatusBadge component
+// StatusBadge component (original simple version)
 const StatusBadge = ({ status }) => {
     const baseClasses = "text-xs font-semibold mr-2 px-3 py-1 rounded-full shadow-sm";
     const statusClasses = {
         "Active": "bg-gradient-to-r from-green-400 to-green-500 text-white",
         "Completed": "bg-gradient-to-r from-slate-400 to-slate-500 text-white",
         "Paused": "bg-gradient-to-r from-yellow-400 to-yellow-500 text-white",
+        // Adding Rejected so the old hardcoded data doesn't crash
+        "Rejected": "bg-gradient-to-r from-red-400 to-red-500 text-white", 
     };
-    return <span className={`${baseClasses} ${statusClasses[status] || ''}`}>{status}</span>;
+    return <span className={`${baseClasses} ${statusClasses[status] || 'bg-gray-400 text-white'}`}>{status}</span>;
 };
 
-// CampaignCard component
-const CampaignCard = ({ campaign, onSelectCampaign, onCreateOrder }) => {
-    const totalEngagement = campaign.reels.reduce((sum, reel) => sum + reel.likes, 0);
-    const avgViews = campaign.reels.length > 0 ? Math.round(campaign.views / campaign.reels.length) : 0;
-
-    return (
-        <div className="bg-white rounded-xl shadow-lg border border-slate-200/80 p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-            <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-bold text-slate-900">{campaign.name}</h3>
-                <StatusBadge status={campaign.status} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="text-center">
-                    <p className="text-2xl font-bold text-blue-600">{campaign.views.toLocaleString()}</p>
-                    <p className="text-sm text-slate-500">Total Views</p>
-                </div>
-                <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">{totalEngagement.toLocaleString()}</p>
-                    <p className="text-sm text-slate-500">Engagement</p>
-                </div>
-            </div>
-
-            <div className="flex flex-col space-y-2">
-                <div className="text-sm text-slate-600">
-                    <span className="font-medium">{campaign.reelsCount}</span> Reels •
-                    <span className="font-medium ml-1">{avgViews.toLocaleString()}</span> Avg Views
-                </div>
-                <div className="flex space-x-2">
-                    <button
-                        onClick={() => onSelectCampaign(campaign)}
-                        className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-blue-600 hover:to-purple-700 transition-all duration-200 transform hover:scale-105"
-                    >
-                        View Details
-                    </button>
-                    <button
-                        onClick={() => onCreateOrder(campaign)}
-                        className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-green-600 hover:to-green-700 transition-all duration-200 transform hover:scale-105"
-                    >
-                        Create Order
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-// CampaignsView component
+// CampaignsView component - Restored to its original "dumb" state.
+// It only displays the data it is given via props.
 const CampaignsView = ({ campaigns = [], onSelectCampaign, onNewCampaign, onCreateOrder }) => {
     const handleSelectCampaign = (campaign) => {
         if (onSelectCampaign) {
@@ -107,35 +63,20 @@ const CampaignsView = ({ campaigns = [], onSelectCampaign, onNewCampaign, onCrea
                         {campaigns.length === 0 ? (
                             <tr>
                                 <td colSpan={8} className="text-center py-8 text-slate-500">
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-4xl mb-2">📊</span>
-                                        <p>No campaigns found</p>
-                                        <button
-                                            onClick={handleNewCampaign}
-                                            className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                                        >
-                                            Create Your First Campaign
-                                        </button>
-                                    </div>
+                                    <p>No campaigns found.</p>
                                 </td>
                             </tr>
                         ) : (
                             campaigns.map(campaign => {
-                                const totalLikes = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.likes || 0), 0) : 0;
-                                const totalComments = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.comments || 0), 0) : 0;
-                                const totalShares = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.shares || 0), 0) : 0;
-                                const totalSaves = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.saves || 0), 0) : 0;
-                                const totalEngagement = totalLikes + totalComments + totalShares + totalSaves;
-                                const engagementRate = campaign.views > 0 ? ((totalEngagement / campaign.views) * 100).toFixed(2) : '0.00';
-                                const lastUpdated = campaign.reels && campaign.reels.length > 0 ?
-                                    new Date(Math.max(...campaign.reels.map(r => new Date(r.uploadedAt || Date.now())))).toLocaleDateString() : 'N/A';
+                                const engagementRate = campaign.engagementRate || '0.00%';
+                                const lastUpdated = campaign.lastUpdated || 'N/A';
                                 return (
                                     <tr key={campaign.id} className="bg-white border-b hover:bg-slate-50">
                                         <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{campaign.name}</th>
                                         <td className="px-6 py-4"><StatusBadge status={campaign.status} /></td>
                                         <td className="px-6 py-4">{campaign.reelsCount || 0}</td>
                                         <td className="px-6 py-4">{(campaign.views || 0).toLocaleString()}</td>
-                                        <td className="px-6 py-4">{engagementRate}%</td>
+                                        <td className="px-6 py-4">{engagementRate}</td>
                                         <td className="px-6 py-4">{lastUpdated}</td>
                                         <td className="px-6 py-4 text-right">
                                             <button onClick={() => handleSelectCampaign(campaign)} className="font-medium text-blue-600 hover:underline">View Details</button>

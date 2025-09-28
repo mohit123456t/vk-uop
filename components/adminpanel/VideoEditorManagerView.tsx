@@ -1,38 +1,28 @@
 import React, { useState, useEffect } from "react";
-import { db } from "../../services/firebase";
-import { collection, getDocs } from "firebase/firestore";
-
-interface VideoEditor {
-    id: string;
-    name: string;
-    email: string;
-    totalEarnings: number;
-    completedTasks: number;
-    status: string;
-}
+import authService, { UserProfile } from "../../services/authService";
 
 const VideoEditorManagerView = () => {
-    const [videoEditors, setVideoEditors] = useState<VideoEditor[]>([]);
+    const [videoEditors, setVideoEditors] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedVideoEditor, setSelectedVideoEditor] = useState<VideoEditor | null>(null);
+    const [selectedVideoEditor, setSelectedVideoEditor] = useState<UserProfile | null>(null);
+    const [isAssignTaskModalOpen, setAssignTaskModalOpen] = useState(false);
+    const [selectedUserForTask, setSelectedUserForTask] = useState<UserProfile | null>(null);
 
     useEffect(() => {
         const fetchVideoEditors = async () => {
             setLoading(true);
-            const querySnapshot = await getDocs(collection(db, "users"));
-            const editorList: VideoEditor[] = [];
-            querySnapshot.forEach((doc) => {
-                if (doc.data().role === 'video_editor') {
-                    editorList.push({ ...doc.data(), id: doc.id } as VideoEditor);
-                }
-            });
-            setVideoEditors(editorList);
+            try {
+                const editorList = await authService.getUsersByRole('video_editor');
+                setVideoEditors(editorList);
+            } catch (error) {
+                console.error("Failed to fetch video editors:", error);
+            }
             setLoading(false);
         };
         fetchVideoEditors();
     }, []);
 
-    const handleViewProfile = (editor: VideoEditor) => {
+    const handleViewProfile = (editor: UserProfile) => {
         setSelectedVideoEditor(editor);
     };
 
@@ -40,67 +30,166 @@ const VideoEditorManagerView = () => {
         setSelectedVideoEditor(null);
     };
 
+    const handleOpenAssignTaskModal = (user: UserProfile) => {
+        setSelectedUserForTask(user);
+        setAssignTaskModalOpen(true);
+    };
+
+    const handleCloseAssignTaskModal = () => {
+        setAssignTaskModalOpen(false);
+        setSelectedUserForTask(null);
+    };
+
+
     if (loading) {
-        return <div className="text-center py-10">Loading Video Editors...</div>;
+        return (
+            <div className="flex flex-col justify-center items-center h-64 w-full">
+                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-slate-900"></div>
+                <p className="text-center mt-4 text-lg font-semibold text-slate-700">Loading Video Editors...</p>
+            </div>
+        );
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <h1 className="text-3xl font-bold text-slate-800 mb-6">Video Editor Management</h1>
-
-            <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                <table className="min-w-full leading-normal">
-                    <thead>
-                        <tr>
-                            <th className="px-5 py-3 border-b-2 border-slate-200 bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Name</th>
-                            <th className="px-5 py-3 border-b-2 border-slate-200 bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</th>
-                            <th className="px-5 py-3 border-b-2 border-slate-200 bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Earnings</th>
-                            <th className="px-5 py-3 border-b-2 border-slate-200 bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Completed Tasks</th>
-                            <th className="px-5 py-3 border-b-2 border-slate-200 bg-slate-100 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Status</th>
-                            <th className="px-5 py-3 border-b-2 border-slate-200 bg-slate-100"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {videoEditors.map(editor => (
-                            <tr key={editor.id}>
-                                <td className="px-5 py-5 border-b border-slate-200 bg-white text-sm">
-                                    <p className="text-slate-900 whitespace-no-wrap">{editor.name}</p>
-                                </td>
-                                <td className="px-5 py-5 border-b border-slate-200 bg-white text-sm">
-                                    <p className="text-slate-900 whitespace-no-wrap">{editor.email}</p>
-                                </td>
-                                <td className="px-5 py-5 border-b border-slate-200 bg-white text-sm">
-                                    <p className="text-slate-900 whitespace-no-wrap">₹{(editor.totalEarnings || 0).toFixed(2)}</p>
-                                </td>
-                                <td className="px-5 py-5 border-b border-slate-200 bg-white text-sm">
-                                    <p className="text-slate-900 whitespace-no-wrap">{editor.completedTasks || 0}</p>
-                                </td>
-                                <td className="px-5 py-5 border-b border-slate-200 bg-white text-sm">
-                                    <span className={`relative inline-block px-3 py-1 font-semibold text-green-900 leading-tight`}>
-                                        <span aria-hidden className={`absolute inset-0 ${editor.status === 'Active' ? 'bg-green-200' : 'bg-red-200'} opacity-50 rounded-full`}></span>
-                                        <span className="relative">{editor.status}</span>
-                                    </span>
-                                </td>
-                                <td className="px-5 py-5 border-b border-slate-200 bg-white text-sm text-right">
-                                    <button onClick={() => handleViewProfile(editor)} className="text-indigo-600 hover:text-indigo-900">View Profile</button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+        <div className="p-6 bg-slate-50 min-h-screen">
+            <div className="mb-8">
+                <h1 className="text-3xl font-bold text-slate-900 mb-2">Video Editor Management</h1>
+                <p className="text-slate-600">Manage and monitor video editor performance and assignments</p>
             </div>
 
-            {selectedVideoEditor && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center">
-                    <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full">
-                        <h2 className="text-2xl font-bold text-slate-800 mb-4">{selectedVideoEditor.name}'s Profile</h2>
-                        <div className="space-y-3">
-                            <p><span className="font-semibold">Email:</span> {selectedVideoEditor.email}</p>
-                            <p><span className="font-semibold">Total Earnings:</span> ₹{(selectedVideoEditor.totalEarnings || 0).toFixed(2)}</p>
-                            <p><span className="font-semibold">Completed Tasks:</span> {selectedVideoEditor.completedTasks || 0}</p>
-                            <p><span className="font-semibold">Status:</span> {selectedVideoEditor.status || 'N/A'}</p>
+            {videoEditors.length === 0 ? (
+                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+                    <div className="text-slate-400 mb-4">
+                        <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 10l4.55a1 1 0 01.55.89V14a1 1 0 01-.55.89L15 19M15 10l-4.5-4.5M15 10l-4.5 4.5M4.5 4.5L9 9m-4.5 5.5L9 19"></path></svg>
+                    </div>
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">No Video Editors Found</h3>
+                    <p className="text-slate-500">Add video editors to start managing their activities.</p>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {videoEditors.map(editor => (
+                        <div key={editor.uid} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center">
+                                    <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center mr-3">
+                                        <span className="text-indigo-600 font-semibold text-sm">
+                                            {editor.name?.charAt(0)?.toUpperCase() || 'V'}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-slate-900">{editor.name || 'Unnamed Video Editor'}</h3>
+                                        <p className="text-sm text-slate-500">ID: {editor.uid.slice(-6)}</p>
+                                    </div>
+                                </div>
+                                <div className={`px-2 py-1 rounded-full text-xs font-medium ${editor.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    {editor.isActive ? 'Active' : 'Inactive'}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+                                <div>
+                                    <div className="text-2xl font-bold text-slate-800">{editor.assignedTasks || 0}</div>
+                                    <div className="text-xs text-slate-500">Assigned</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-yellow-600">{editor.pendingTasks || 0}</div>
+                                    <div className="text-xs text-slate-500">Pending</div>
+                                </div>
+                                <div>
+                                    <div className="text-2xl font-bold text-green-600">{editor.completedTasks || 0}</div>
+                                    <div className="text-xs text-slate-500">Completed</div>
+                                </div>
+                            </div>
+
+                            <div className="text-sm text-slate-600 mb-4">
+                                <strong>Last Activity:</strong> {editor.lastLoginAt ? new Date(editor.lastLoginAt).toLocaleString() : 'Never'}
+                            </div>
+
+                            <div className="flex space-x-2">
+                                <button onClick={() => handleViewProfile(editor)} className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">
+                                    View Details
+                                </button>
+                                <button onClick={() => handleOpenAssignTaskModal(editor)} className="flex-1 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600 transition-colors">
+                                    Assign Task
+                                </button>
+                            </div>
                         </div>
-                        <button onClick={handleCloseProfile} className="mt-6 w-full bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-900 transition-colors">Close</button>
+                    ))}
+                </div>
+            )}
+            
+            {selectedVideoEditor && (
+                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+                    <div className="bg-slate-50 rounded-2xl shadow-2xl p-8 max-w-2xl w-full transform transition-all">
+                        <div className="flex items-start justify-between mb-6">
+                            <div className="flex items-center">
+                                <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mr-4 border-2 border-white shadow-md">
+                                    <span className="text-indigo-600 font-bold text-2xl">
+                                        {selectedVideoEditor.name?.charAt(0)?.toUpperCase() || 'V'}
+                                    </span>
+                                </div>
+                                <div>
+                                    <h2 className="text-3xl font-bold text-slate-800">{selectedVideoEditor.name}'s Profile</h2>
+                                    <p className="text-slate-600">{selectedVideoEditor.role}</p>
+                                </div>
+                            </div>
+                            <button onClick={handleCloseProfile} className="text-slate-500 hover:text-slate-800">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
+                                <p className="text-sm font-medium text-slate-500">Assigned Tasks</p>
+                                <p className="text-3xl font-bold text-slate-800 mt-1">{selectedVideoEditor.assignedTasks || 0}</p>
+                            </div>
+                            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
+                                <p className="text-sm font-medium text-slate-500">Pending Tasks</p>
+                                <p className="text-3xl font-bold text-yellow-600 mt-1">{selectedVideoEditor.pendingTasks || 0}</p>
+                            </div>
+                            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80">
+                                <p className="text-sm font-medium text-slate-500">Completed Tasks</p>
+                                <p className="text-3xl font-bold text-green-600 mt-1">{selectedVideoEditor.completedTasks || 0}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                            <h3 className="font-bold text-lg text-slate-800 mb-4">User Details</h3>
+                            <div className="space-y-3">
+                                <div className="flex justify-between">
+                                    <span className="font-medium text-slate-600">Email:</span>
+                                    <span className="text-slate-800 font-mono">{selectedVideoEditor.email}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="font-medium text-slate-600">Status:</span>
+                                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${selectedVideoEditor.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {selectedVideoEditor.isActive ? 'Active' : 'Inactive'}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between">
+                                    <span className="font-medium text-slate-600">Last Login:</span>
+                                    <span className="text-slate-800">{selectedVideoEditor.lastLoginAt ? new Date(selectedVideoEditor.lastLoginAt).toLocaleString() : 'Never'}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isAssignTaskModalOpen && selectedUserForTask && (
+                 <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-center items-center p-4">
+                    <div className="bg-white rounded-lg shadow-2xl p-8 max-w-lg w-full">
+                        <h2 className="text-2xl font-bold text-slate-800 mb-4">Assign Task to {selectedUserForTask.name}</h2>
+                        <div className="text-slate-600">
+                            <p>Here you will be able to assign a new task from a list of available campaigns or create a new one.</p>
+                            <div className="mt-4 p-4 bg-slate-100 rounded-lg border border-slate-200">
+                                <h4 className="font-bold text-slate-700">Coming Soon!</h4>
+                                <p className="text-sm mt-1">The task assignment module is currently under development. Stay tuned!</p>
+                            </div>
+                        </div>
+                        <div className="mt-6 text-right">
+                            <button onClick={handleCloseAssignTaskModal} className="w-auto bg-slate-800 text-white py-2 px-4 rounded-lg hover:bg-slate-900 transition-colors">Close</button>
+                        </div>
                     </div>
                 </div>
             )}

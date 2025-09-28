@@ -1,72 +1,85 @@
 import React, { useState, useEffect } from 'react';
-import authService, { UserProfile } from '../../services/authService';
 
-const ProfileView = () => {
-    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+const ProfileSkeleton = () => (
+    <div className="animate-pulse">
+        {/* Profile Header Skeleton */}
+        <div className="flex items-center mb-10">
+            <div className="w-24 h-24 bg-slate-200 rounded-full mr-6"></div>
+            <div className="flex-1">
+                <div className="h-8 bg-slate-200 rounded w-1/3 mb-3"></div>
+                <div className="h-5 bg-slate-200 rounded w-1/2"></div>
+            </div>
+        </div>
+
+        {/* Account Details Skeleton */}
+        <div className="space-y-4">
+             <div className="h-6 bg-slate-200 rounded w-1/4 mb-6"></div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-100 p-4 rounded-lg h-20"></div>
+                <div className="bg-slate-100 p-4 rounded-lg h-20"></div>
+                <div className="bg-slate-100 p-4 rounded-lg h-20"></div>
+                <div className="bg-slate-100 p-4 rounded-lg h-20"></div>
+             </div>
+        </div>
+    </div>
+);
+
+
+const ProfileView = ({ userProfile }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Subscribe to auth state changes to keep the profile synced
-        const unsubscribe = authService.onAuthStateChange((state) => {
-            setUserProfile(state.userProfile);
-            setLoading(state.isLoading);
-        });
+        // Simulate loading delay, remove this in production if data loads instantly
+        const timer = setTimeout(() => {
+            if (userProfile) {
+                setLoading(false);
+            }
+        }, 500); // 0.5 second delay to show skeleton
 
-        // Cleanup subscription on component unmount
-        return () => unsubscribe();
-    }, []);
+        return () => clearTimeout(timer);
+    }, [userProfile]);
 
-    const formatRole = (role: string | undefined) => {
-        if (!role) return '';
-        return role.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
 
-    if (loading) {
-        return (
-            <div className="flex flex-col justify-center items-center h-screen w-full">
-                <div className="animate-spin rounded-full h-24 w-24 border-b-4 border-slate-900"></div>
-                <p className="text-center mt-6 text-xl font-semibold text-slate-700">Loading Profile...</p>
-            </div>
-        );
-    }
-
-    if (!userProfile) {
-        return <p className="text-center text-red-500 text-xl p-8">Could not load user profile. Please try logging in again.</p>;
+    if (loading || !userProfile) {
+        return <ProfileSkeleton />;
     }
 
     return (
-        <div className="p-8 bg-gray-50 min-h-screen">
-            <div className="bg-white rounded-2xl shadow-xl p-8 max-w-4xl mx-auto">
-                <div className="flex items-center space-x-6 mb-8">
-                    <div className="w-24 h-24 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-500 text-4xl font-bold">
-                        {userProfile.name?.toUpperCase().charAt(0) || 'U'}
-                    </div>
-                    <div>
-                        <h1 className="text-4xl font-extrabold text-gray-800">{userProfile.name?.toUpperCase()}</h1>
-                        <p className="text-xl text-gray-500">{userProfile.email}</p>
-                        <p className="text-lg text-indigo-600 font-semibold mt-1 bg-indigo-100 px-3 py-1 rounded-full inline-block">
-                            {formatRole(userProfile.role)}
-                        </p>
-                    </div>
+        <div className="max-w-4xl mx-auto">
+            {/* Profile Header */}
+            <div className="flex items-center mb-10 p-4 bg-white rounded-xl shadow-sm border border-slate-200/80">
+                <img 
+                    src={userProfile.photoURL || `https://ui-avatars.com/api/?name=${userProfile.name}&background=random`}
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full mr-6 border-4 border-slate-100 object-cover"
+                />
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-800">{userProfile.name}</h1>
+                    <p className="text-slate-600">{userProfile.email}</p>
                 </div>
+            </div>
 
-                <div className="border-t border-gray-200 pt-8">
-                    <h2 className="text-2xl font-bold text-gray-700 mb-4">Account Details</h2>
-                    <div className="space-y-4">
-                        <div className="bg-slate-50 p-4 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">User ID</p>
-                            <p className="text-slate-800 font-mono text-sm">{'TM' + userProfile.uid.slice(-4)}</p>
-                        </div>
-                        <div className="bg-slate-50 p-4 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">Member Since</p>
-                            <p className="text-slate-800">{new Date(userProfile.createdAt).toLocaleDateString()}</p>
-                        </div>
-                         <div className="bg-slate-50 p-4 rounded-lg">
-                            <p className="text-sm text-slate-500 font-medium">Last Login</p>
-                            <p className="text-slate-800">{new Date(userProfile.lastLoginAt).toLocaleString()}</p>
-                        </div>
-                    </div>
-                </div>
+            {/* Account Details */}
+            <div>
+                 <h2 className="text-2xl font-bold text-slate-700 mb-4">Account Details</h2>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="bg-slate-50/80 p-4 rounded-lg border border-slate-200/80">
+                         <p className="text-sm text-slate-500 font-medium">User ID</p>
+                         <p className="text-slate-800 font-mono text-sm">{'TM' + userProfile.uid.slice(-4)}</p>
+                     </div>
+                     <div className="bg-slate-50/80 p-4 rounded-lg border border-slate-200/80">
+                         <p className="text-sm text-slate-500 font-medium">Member Since</p>
+                         <p className="text-slate-800">{new Date(userProfile.createdAt).toLocaleDateString()}</p>
+                     </div>
+                      <div className="bg-slate-50/80 p-4 rounded-lg border border-slate-200/80">
+                         <p className="text-sm text-slate-500 font-medium">Role</p>
+                         <p className="text-slate-800 font-semibold">{userProfile.role}</p>
+                     </div>
+                      <div className="bg-slate-50/80 p-4 rounded-lg border border-slate-200/80">
+                         <p className="text-sm text-slate-500 font-medium">Status</p>
+                         <p className="text-green-600 font-semibold capitalize">Active</p>
+                     </div>
+                 </div>
             </div>
         </div>
     );

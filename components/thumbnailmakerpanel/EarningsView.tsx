@@ -1,76 +1,83 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { ICONS } from '../../constants';
 
 const EarningsView = () => {
-    // Dummy data for earnings
-    const earningsData = {
-        totalEarnings: 7500,
-        pendingClearance: 1200,
-        lastPayout: {
-            amount: 2500,
-            date: '2024-07-15',
-        },
-        transactions: [
-            { id: 1, date: '2024-07-20', description: 'Thumbnail for Campaign X', amount: 500, status: 'Completed' },
-            { id: 2, date: '2024-07-18', description: 'Task Y', amount: 300, status: 'Completed' },
-            { id: 3, date: '2024-07-15', description: 'Payout', amount: -2500, status: 'Cleared' },
-            { id: 4, date: '2024-07-12', description: 'Campaign Z graphics', amount: 700, status: 'Completed' },
-        ],
+    const [loading, setLoading] = useState(false);
+
+    // All data is now static and set to zero or empty arrays.
+    const stats = {
+        totalEarnings: 0,
+        withdrawn: 0,
+        pendingClearance: 0,
     };
 
+    const recentTransactions = [];
+    const paymentMethods = [];
+
+    const handleWithdraw = () => {
+        // This function will now just show an alert or do nothing.
+        alert("Withdrawal functionality is currently disabled.");
+    };
+
+    const StatCard = ({ icon, label, amount, colorClass }) => (
+        <div className={`bg-white p-6 rounded-xl shadow-sm border border-slate-200/80`}>
+            <div className="flex items-center">
+                <div className={`mr-4 text-2xl ${colorClass}`}>{icon}</div>
+                <div>
+                    <p className="text-sm font-medium text-slate-500">{label}</p>
+                    <p className={`text-2xl font-bold ${colorClass}`}>₹{amount.toLocaleString()}</p>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-slate-900 flex items-center"><span className="mr-2 animate-bounce">💰</span>Your Earnings</h2>
-            </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="text-lg font-semibold text-slate-800">Total Earnings</h3>
-                    <p className="text-3xl font-bold text-green-600">₹{earningsData.totalEarnings.toLocaleString()}</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="text-lg font-semibold text-slate-800">Pending Clearance</h3>
-                    <p className="text-3xl font-bold text-amber-600">₹{earningsData.pendingClearance.toLocaleString()}</p>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="text-lg font-semibold text-slate-800">Last Payout</h3>
-                    <p className="text-3xl font-bold text-indigo-600">₹{earningsData.lastPayout.amount.toLocaleString()}</p>
-                    <p className="text-sm text-slate-500">on {earningsData.lastPayout.date}</p>
-                </div>
-            </div>
-
-            {/* Transaction History */}
+        <div className="space-y-8">
             <div>
-                <h3 className="text-xl font-bold text-slate-900 mb-4">Transaction History</h3>
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-slate-50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Description</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Amount</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {earningsData.transactions.map((transaction) => (
-                                <tr key={transaction.id}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{transaction.date}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800 font-medium">{transaction.description}</td>
-                                    <td className={`px-6 py-4 whitespace-nowrap text-sm font-semibold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        {transaction.amount > 0 ? `+₹${transaction.amount}` : `-₹${Math.abs(transaction.amount)}`}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${transaction.status === 'Completed' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-800'}`}>
-                                            {transaction.status}
-                                        </span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <h1 className="text-2xl font-bold text-slate-900">Earnings & Payouts</h1>
+                <p className="text-slate-600">Track your earnings and manage your withdrawal methods.</p>
+            </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard icon={ICONS.currencyRupee} label="Total Earnings" amount={stats.totalEarnings} colorClass="text-green-600" />
+                <StatCard icon={ICONS.checkCircle} label="Total Withdrawn" amount={stats.withdrawn} colorClass="text-blue-600" />
+                <StatCard icon={ICONS.clock} label="Pending Clearance" amount={stats.pendingClearance} colorClass="text-orange-500" />
+            </div>
+
+            {/* Withdrawal Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg mb-4 text-slate-800">Withdraw Funds</h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-sm font-medium text-slate-600">Amount to Withdraw</label>
+                            <div className="relative mt-1">
+                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-500">₹</span>
+                                <input type="number" className="w-full pl-7 p-2 border border-slate-300 rounded-lg" placeholder="0.00" disabled />
+                            </div>
+                        </div>
+                        <button onClick={handleWithdraw} disabled className="w-full bg-slate-900 text-white font-semibold py-2.5 rounded-lg hover:bg-slate-800 disabled:opacity-50">
+                           Withdraw (Disabled)
+                        </button>
+                        <p className="text-xs text-center text-slate-500">Withdrawals are processed within 3-5 business days.</p>
+                    </div>
                 </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <h3 className="font-bold text-lg mb-4 text-slate-800">Payout Methods</h3>
+                    <div className="text-center py-8">
+                         <p className="text-slate-500">No payout methods have been set up.</p>
+                         <button className="mt-4 text-sm font-semibold text-blue-600 hover:underline" disabled>Add Method (Disabled)</button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Transactions */}
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                 <h3 className="font-bold text-lg mb-4 text-slate-800">Recent Transactions</h3>
+                 <div className="text-center py-8">
+                     <p className="text-slate-500">You have no recent transactions.</p>
+                 </div>
             </div>
         </div>
     );

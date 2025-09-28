@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart,
   Bar,
@@ -9,6 +9,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { ICONS } from '../../constants';
+import authService from '../../services/authService';
 
 // 🧩 StatCard Component — White Theme with Colored Accents
 const StatCard = ({ title, value, icon, color, size = 'normal' }) => (
@@ -29,19 +30,51 @@ const StatCard = ({ title, value, icon, color, size = 'normal' }) => (
 
 // 🖥️ Main Dashboard — WHITE GOD MODE ACTIVATED
 const SuperAdminDashboard = ({ data }) => {
+  const [userCounts, setUserCounts] = useState({
+    video_editor: 0,
+    script_writer: 0,
+    thumbnail_maker: 0,
+    uploader: 0,
+    totalStaff: 0,
+    brands: 0,
+  });
+
+  useEffect(() => {
+    const fetchUserCounts = async () => {
+      try {
+        const [editors, writers, makers, uploaders, brands] = await Promise.all([
+          authService.getUsersByRole('video_editor'),
+          authService.getUsersByRole('script_writer'),
+          authService.getUsersByRole('thumbnail_maker'),
+          authService.getUsersByRole('uploader'),
+          authService.getUsersByRole('brand'),
+        ]);
+        
+        const totalStaff = editors.length + writers.length + makers.length + uploaders.length;
+
+        setUserCounts({
+          video_editor: editors.length,
+          script_writer: writers.length,
+          thumbnail_maker: makers.length,
+          uploader: uploaders.length,
+          totalStaff: totalStaff,
+          brands: brands.length,
+        });
+      } catch (error) {
+        console.error("Failed to fetch user counts:", error);
+      }
+    };
+
+    fetchUserCounts();
+  }, []);
+
   const dashboardData = data || {
-    totalBrands: 0,
     brandsWithLiveCampaigns: 0,
     brandsWithoutCampaigns: 0,
     totalActiveCampaigns: 0,
     liveCampaigns: 0,
     pendingCampaigns: 0,
     totalCampaignEarnings: 0,
-    totalStaff: 0,
-    totalEditors: 0,
-    totalScriptWriters: 0,
-    totalUploaders: 0,
-    totalThumbnailMakers: 0,
     campaignEarnings: [],
   };
 
@@ -59,7 +92,7 @@ const SuperAdminDashboard = ({ data }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           title="Total Brands"
-          value={dashboardData.totalBrands.toString()}
+          value={userCounts.brands.toString()}
           icon={ICONS.briefcase}
           color="bg-blue-100 text-blue-600"
         />
@@ -105,25 +138,25 @@ const SuperAdminDashboard = ({ data }) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           title="Total Staff"
-          value={dashboardData.totalStaff.toString()}
+          value={userCounts.totalStaff.toString()}
           icon={ICONS.usersGroup}
           color="bg-gray-100 text-gray-600"
         />
         <StatCard
           title="Video Editors"
-          value={dashboardData.totalEditors.toString()}
+          value={userCounts.video_editor.toString()}
           icon={ICONS.video}
           color="bg-indigo-100 text-indigo-600"
         />
         <StatCard
           title="Script Writers"
-          value={dashboardData.totalScriptWriters.toString()}
+          value={userCounts.script_writer.toString()}
           icon={ICONS.pencilSquare}
           color="bg-pink-100 text-pink-600"
         />
         <StatCard
           title="Uploaders"
-          value={dashboardData.totalUploaders.toString()}
+          value={userCounts.uploader.toString()}
           icon={ICONS.upload}
           color="bg-emerald-100 text-emerald-600"
         />
@@ -133,7 +166,7 @@ const SuperAdminDashboard = ({ data }) => {
       <div className="grid grid-cols-1">
         <StatCard
           title="Thumbnail Makers"
-          value={dashboardData.totalThumbnailMakers.toString()}
+          value={userCounts.thumbnail_maker.toString()}
           icon={ICONS.photo}
           color="bg-orange-100 text-orange-600"
           size="large"
@@ -196,7 +229,7 @@ const SuperAdminDashboard = ({ data }) => {
             <div className="flex items-center justify-between">
               <span className="text-slate-600">Total Users</span>
               <span className="font-bold text-slate-900">
-                {dashboardData.totalStaff + dashboardData.totalBrands}
+                {userCounts.totalStaff + userCounts.brands}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -222,13 +255,13 @@ const SuperAdminDashboard = ({ data }) => {
             <div className="flex items-center justify-between">
               <span className="text-slate-600">Content Creators</span>
               <span className="font-bold text-purple-600">
-                {dashboardData.totalScriptWriters + dashboardData.totalThumbnailMakers}
+                {userCounts.script_writer + userCounts.thumbnail_maker}
               </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-slate-600">Technical Team</span>
               <span className="font-bold text-indigo-600">
-                {dashboardData.totalEditors + dashboardData.totalUploaders}
+                {userCounts.video_editor + userCounts.uploader}
               </span>
             </div>
             <div className="flex items-center justify-between">

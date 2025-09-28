@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, addDoc, getDocs, query, where, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, onSnapshot, serverTimestamp } from 'firebase/firestore'; // Removed orderBy
 import { db } from '../../services/firebase';
 import { ICONS } from '../../constants';
 
@@ -17,8 +17,8 @@ const CollaborationView = ({ userProfile }) => {
 
     useEffect(() => {
         if (userProfile?.email) {
-            fetchMessages();
-            setupRealtimeListener();
+            const unsubscribe = setupRealtimeListener();
+            return () => unsubscribe(); // Cleanup listener on component unmount or dep change
         }
     }, [userProfile, activeChat]);
 
@@ -26,37 +26,26 @@ const CollaborationView = ({ userProfile }) => {
         scrollToBottom();
     }, [messages]);
 
-    const fetchMessages = async () => {
-        try {
-            const messagesQuery = query(
-                collection(db, 'team_messages'),
-                where('channel', '==', activeChat),
-                orderBy('timestamp', 'asc')
-            );
-            const messagesSnapshot = await getDocs(messagesQuery);
-            const messagesData = messagesSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setMessages(messagesData);
-        } catch (error) {
-            console.error('Error fetching messages:', error);
-            setMessages([]);
-        }
-    };
-
     const setupRealtimeListener = () => {
         const messagesQuery = query(
             collection(db, 'team_messages'),
-            where('channel', '==', activeChat),
-            orderBy('timestamp', 'asc')
+            where('channel', '==', activeChat)
+            // orderBy('timestamp', 'asc') // <-- This was causing the index error
         );
 
         return onSnapshot(messagesQuery, (snapshot) => {
-            const messagesData = snapshot.docs.map(doc => ({
+            let messagesData = snapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
+
+            // Sort the data on the client-side
+            messagesData.sort((a, b) => {
+                const timeA = a.timestamp?.toMillis() || 0;
+                const timeB = b.timestamp?.toMillis() || 0;
+                return timeA - timeB; // For ascending order
+            });
+
             setMessages(messagesData);
         });
     };

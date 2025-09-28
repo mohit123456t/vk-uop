@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ICONS } from '../../constants';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import authService from '../../services/authService';
 
@@ -12,6 +12,7 @@ const StatusBadge = ({ status }) => {
     "In-Progress": "bg-blue-100 text-blue-800",
     "Submitted": "bg-yellow-100 text-yellow-800",
     "Approved": "bg-green-100 text-green-800",
+    "Active": "bg-green-100 text-green-800",
   };
 
   return (
@@ -170,7 +171,7 @@ const TaskDetailsPage = ({ campaign, isOpen, onClose }) => {
                   </motion.p>
                 )
               },
-              ...(campaign.currentStage === 'in_progress' ? [{
+              ...(campaign.status === 'Active' ? [{
                 title: "Upload Completed Video",
                 content: (
                   <div className="space-y-5">
@@ -270,42 +271,44 @@ const AssignedTasks = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
   useEffect(() => {
-    const fetchAssignedCampaigns = async () => {
-      try {
-        const authState = await new Promise<any>((resolve) => {
-          const unsubscribe = authService.onAuthStateChange((state) => {
-            unsubscribe();
-            resolve(state);
-          });
-        });
-
-        if (authState.isAuthenticated && authState.userProfile) {
-          const userId = authState.userProfile.uid;
-          const campaignsRef = collection(db, 'campaigns');
-          const querySnapshot = await getDocs(campaignsRef);
-          const fetchedCampaigns = querySnapshot.docs
-            .map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }))
-            .filter((campaign: any) =>
-              campaign.assignedStaff?.some((assignment: any) =>
-                assignment.role === 'video_editor' && assignment.userId === userId
-              )
-            );
-          setCampaigns(fetchedCampaigns);
+    const unsubscribe = authService.onAuthStateChange((state) => {
+        if (state.isAuthenticated && state.userProfile) {
+            setUserProfile(state.userProfile);
+        } else {
+            setUserProfile(null);
         }
-      } catch (error) {
-        console.error('Error fetching assigned campaigns:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    });
 
-    fetchAssignedCampaigns();
-  }, []);
+    return () => unsubscribe();
+}, []);
+
+useEffect(() => {
+    if (!userProfile) return;
+
+    setLoading(true);
+    const campaignsRef = collection(db, 'campaigns');
+    const q = query(campaignsRef, where('status', '==', 'Active'));
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const allActiveCampaigns = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        const assignedCampaigns = allActiveCampaigns.filter(campaign => campaign.assignedEditor === userProfile.uid);
+
+        setCampaigns(assignedCampaigns);
+        setLoading(false);
+    }, (error) => {
+        console.error('Error fetching active campaigns:', error);
+        setLoading(false);
+    });
+
+    return () => unsubscribe();
+}, [userProfile]);
 
   const handleViewDetails = (campaign) => {
     setSelectedCampaign(campaign);

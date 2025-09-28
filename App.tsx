@@ -2,7 +2,6 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import BrandPanel from './components/BrandPanel';
-import PortalLogin from './components/PortalLogin';
 import AdminPanel from './components/AdminPanel';
 import SuperAdminPanel from './components/adminpanel/SuperAdminPanel';
 import UploaderPanel from './components/UploaderPanel';
@@ -31,8 +30,7 @@ const App: React.FC = () => {
         <AnimatedBackground />
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/portal" element={<PortalLogin />} />
-          <Route path="/role-login" element={<RoleBasedPortalLogin />} />
+          <Route path="/portal" element={<RoleBasedPortalLogin />} />
           <Route path="/brand" element={<BrandPanel onNavigate={() => {}} />} />
           <Route path="/admin" element={<AdminPanel onNavigate={() => {}} />} />
           <Route path="/super-admin" element={<SuperAdminPanel />} />

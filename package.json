@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated",
     "@google/genai": "^1.19.0",
     "@tailwindcss/vite": "^4.1.13",
     "date-fns": "^4.1.0",

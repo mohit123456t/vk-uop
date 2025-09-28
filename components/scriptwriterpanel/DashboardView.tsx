@@ -1,238 +1,135 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { ICONS } from '../../constants';
-import { collection, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where } from 'firebase/firestore'; // Removed orderBy
 import { db } from '../../services/firebase';
+import { ICONS } from '../../constants';
 
-const StatCard = ({ title, value, icon, subtitle = null, extra = null }) => (
-    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-sm border border-slate-200/80 hover:shadow-md transition-shadow">
-        <div className="flex justify-between items-start">
-            <div>
-                <p className="text-sm text-slate-600 font-medium">{title}</p>
-                <p className="text-3xl font-bold text-slate-800 mt-1">{value}</p>
-                {subtitle && <p className="text-xs text-slate-500 mt-1">{subtitle}</p>}
-                {extra && <p className="text-xs text-slate-500 mt-1">{extra}</p>}
-            </div>
-            <div className="text-slate-500">{icon}</div>
-        </div>
-    </div>
-);
-
-const DashboardView = ({ onEditTask = (task) => {}, userProfile }) => {
-    const [tasks, setTasks] = useState<any[]>([]);
-    const [completedTasks, setCompletedTasks] = useState<any[]>([]);
-    const [performanceData, setPerformanceData] = useState<any[]>([]);
+const DashboardView = ({ userProfile, onTaskClick }) => {
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState({
-        totalAssigned: 0,
-        totalCompleted: 0,
-        totalScripts: 0,
-        approvalRate: 0,
-        todayAssigned: 0,
-        todayCompleted: 0,
-        pendingTasks: 0
+        pending: 0,
+        inProgress: 0,
+        approved: 0,
     });
 
     useEffect(() => {
-        if (userProfile) {
-            fetchDashboardData(userProfile.email);
+        if (userProfile?.email) {
+            fetchTasks();
         }
     }, [userProfile]);
 
-    const fetchDashboardData = async (userEmail: string) => {
+    const fetchTasks = async () => {
         try {
-
-            // Fetch script tasks assigned to current user
+            setLoading(true);
             const tasksQuery = query(
                 collection(db, 'script_tasks'),
-                where('assignedTo', '==', userEmail),
-                orderBy('createdAt', 'desc'),
-                limit(10)
+                where('assignedTo', '==', userProfile.email)
+                // orderBy('createdAt', 'desc') // <-- This was causing the index error
             );
             const tasksSnapshot = await getDocs(tasksQuery);
-            const tasksData = tasksSnapshot.docs.map(doc => ({
+            let tasksData = tasksSnapshot.docs.map(doc => ({
                 id: doc.id,
                 ...doc.data()
             }));
-            setTasks(tasksData);
 
-            // Fetch completed scripts
-            const completedQuery = query(
-                collection(db, 'script_tasks'),
-                where('assignedTo', '==', userEmail),
-                where('status', '==', 'Approved'),
-                orderBy('updatedAt', 'desc'),
-                limit(5)
-            );
-            const completedSnapshot = await getDocs(completedQuery);
-            const completedData = completedSnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-            setCompletedTasks(completedData);
-
-            // Calculate statistics
-            const totalAssigned = tasksData.length;
-            const totalCompleted = completedData.length;
-            const approvalRate = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
-
-            // Get today's date
-            const today = new Date().toISOString().split('T')[0];
-            const todayAssigned = tasksData.filter((task: any) =>
-                task.createdAt && task.createdAt.startsWith(today)
-            ).length;
-            const todayCompleted = completedData.filter((task: any) =>
-                task.updatedAt && task.updatedAt.startsWith(today)
-            ).length;
-
-            setStats({
-                totalAssigned,
-                totalCompleted,
-                totalScripts: totalAssigned + totalCompleted,
-                approvalRate,
-                todayAssigned,
-                todayCompleted,
-                pendingTasks: totalAssigned - totalCompleted
+            // Sort on the client-side
+            tasksData.sort((a, b) => {
+                const timeA = a.createdAt?.toMillis() || 0;
+                const timeB = b.createdAt?.toMillis() || 0;
+                return timeB - timeA; // Descending
             });
 
-            // Generate performance data for the last 6 months
-            const performance = [];
-            for (let i = 5; i >= 0; i--) {
-                const date = new Date();
-                date.setMonth(date.getMonth() - i);
-                const month = date.toLocaleDateString('en-US', { month: 'short' });
-                const monthCompleted = completedData.filter((task: any) => {
-                    if (!task.updatedAt) return false;
-                    const taskDate = new Date(task.updatedAt);
-                    return taskDate.getMonth() === date.getMonth() &&
-                           taskDate.getFullYear() === date.getFullYear();
-                }).length;
-
-                performance.push({
-                    name: month,
-                    completed: monthCompleted,
-                    assigned: 0
-                });
-            }
-            setPerformanceData(performance);
+            setTasks(tasksData);
+            calculateStats(tasksData);
 
         } catch (error) {
-            console.error('Error fetching dashboard data:', error);
-            // Set default values on error
+            console.error("Error fetching dashboard data:", error);
             setTasks([]);
-            setCompletedTasks([]);
-            setPerformanceData([]);
-            setStats({
-                totalAssigned: 0,
-                totalCompleted: 0,
-                totalScripts: 0,
-                approvalRate: 0,
-                todayAssigned: 0,
-                todayCompleted: 0,
-                pendingTasks: 0
-            });
+        } finally {
+            setLoading(false);
         }
     };
 
-    // Additional stats for today and pending
-    const todayAssigned = stats.todayAssigned;
-    const todayCompleted = stats.todayCompleted;
-    const pendingTasks = stats.pendingTasks;
+    const calculateStats = (tasksData) => {
+        const pending = tasksData.filter(t => t.status === 'Pending').length;
+        const inProgress = tasksData.filter(t => t.status === 'In Progress').length;
+        const approved = tasksData.filter(t => t.status === 'Approved').length;
+        setStats({ pending, inProgress, approved });
+    };
+
+    const getStatusChipStyle = (status) => {
+        switch (status) {
+            case 'Pending': return 'bg-yellow-100 text-yellow-800';
+            case 'In Progress': return 'bg-blue-100 text-blue-800';
+            case 'Approved': return 'bg-green-100 text-green-800';
+            case 'Revision': return 'bg-orange-100 text-orange-800';
+            default: return 'bg-slate-100 text-slate-800';
+        }
+    };
 
     return (
         <div className="space-y-8">
+            {/* Welcome Header */}
             <div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-1">
-                    Welcome, {userProfile?.name || 'User'}
-                </h1>
-                <p className="text-slate-600">Here's your comprehensive script writing dashboard with task details and performance metrics.</p>
+                <h1 className="text-2xl font-bold text-slate-900">Welcome back, {userProfile?.name?.split(' ')[0]}!</h1>
+                <p className="text-slate-600">Here's what's happening with your scripts today.</p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
-                <StatCard title="Total Scripts Assigned" value={stats.totalAssigned.toString()} subtitle="Since joining" icon={ICONS.clipboard} />
-                <StatCard title="Scripts Completed" value={stats.totalCompleted.toString()} subtitle={`${stats.approvalRate}% completion rate`} icon={ICONS.checkCircle} />
-                <StatCard title="Scripts Written" value={stats.totalScripts.toString()} subtitle="Since joining" icon={ICONS.pencilSquare} />
-                <StatCard title="Avg. Approval Rate" value={`${stats.approvalRate}%`} subtitle="Excellent performance" icon={ICONS.trendingUp} />
-                <StatCard title="Scripts Assigned Today" value={todayAssigned.toString()} icon={ICONS.clipboard} />
-                <StatCard title="Scripts Completed Today" value={todayCompleted.toString()} icon={ICONS.checkCircle} />
-                <StatCard title="Pending Scripts" value={pendingTasks.toString()} icon={ICONS.bell} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4">Recent Tasks</h3>
-                    {tasks.length === 0 ? (
-                        <div className="text-center py-8">
-                            <div className="text-slate-400 mb-4">
-                                <span className="text-4xl">📝</span>
-                            </div>
-                            <h4 className="text-lg font-semibold text-slate-900 mb-2">No tasks assigned yet</h4>
-                            <p className="text-slate-600">Your assigned tasks will appear here</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-4">
-                            {tasks.slice(0, 5).map((task: any) => (
-                                <div key={task.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                                    <div>
-                                        <h4 className="font-semibold text-slate-800">{task.campaignName || task.id}</h4>
-                                        <p className="text-sm text-slate-600">{task.brief || 'No brief available'}</p>
-                                        <p className="text-xs text-slate-500">Status: {task.status || 'Pending'}</p>
-                                    </div>
-                                    <button
-                                        onClick={() => onEditTask && onEditTask(task)}
-                                        className="bg-slate-900 text-white px-3 py-1 rounded text-sm hover:bg-slate-700"
-                                    >
-                                        Edit
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    <p className="text-sm font-medium text-slate-500">Pending Scripts</p>
+                    <p className="text-3xl font-bold text-slate-800">{stats.pending}</p>
                 </div>
-
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4">Performance Overview</h3>
-                    {performanceData.length === 0 ? (
-                        <div className="text-center py-8">
-                            <div className="text-slate-400 mb-4">
-                                <span className="text-4xl">📊</span>
-                            </div>
-                            <h4 className="text-lg font-semibold text-slate-900 mb-2">No performance data</h4>
-                            <p className="text-slate-600">Your performance metrics will appear here</p>
-                        </div>
-                    ) : (
-                        <ResponsiveContainer width="100%" height={200}>
-                            <LineChart data={performanceData}>
-                                <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
-                                <YAxis />
-                                <Tooltip />
-                                <Line type="monotone" dataKey="completed" stroke="#1e293b" strokeWidth={2} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    )}
+                    <p className="text-sm font-medium text-slate-500">Scripts In Progress</p>
+                    <p className="text-3xl font-bold text-slate-800">{stats.inProgress}</p>
+                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+                    <p className="text-sm font-medium text-slate-500">Approved Scripts</p>
+                    <p className="text-3xl font-bold text-slate-800">{stats.approved}</p>
                 </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                <h3 className="font-bold text-lg text-slate-800 mb-4">Completed Scripts</h3>
-                {completedTasks.length === 0 ? (
-                    <div className="text-center py-8">
-                        <div className="text-slate-400 mb-4">
-                            <span className="text-4xl">✅</span>
-                        </div>
-                        <h4 className="text-lg font-semibold text-slate-900 mb-2">No completed scripts yet</h4>
-                        <p className="text-slate-600">Your completed scripts will appear here</p>
+            {/* Recent Tasks Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200/80">
+                <h3 className="font-bold text-lg p-6 border-b text-slate-800">Your Active Tasks</h3>
+                {loading ? (
+                    <div className="p-6 text-center">
+                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900 mx-auto"></div>
+                         <p className="mt-2 text-slate-600">Loading tasks...</p>
+                    </div>
+                ) : tasks.length === 0 ? (
+                    <div className="p-6 text-center">
+                        <p className="text-slate-600">No tasks assigned to you yet.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {completedTasks.map((task: any) => (
-                            <div key={task.id} className="p-4 bg-green-50 rounded-lg border border-green-200">
-                                <h4 className="font-semibold text-green-800">{task.campaignName || task.id}</h4>
-                                <p className="text-sm text-green-600">{task.brief || 'No brief available'}</p>
-                                <p className="text-xs text-green-500">Completed: {task.updatedAt ? new Date(task.updatedAt).toLocaleDateString() : 'N/A'}</p>
-                            </div>
-                        ))}
-                    </div>
+                    <table className="w-full text-sm text-left text-slate-600">
+                        <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                            <tr>
+                                <th className="px-6 py-3">Video Title</th>
+                                <th className="px-6 py-3">Status</th>
+                                <th className="px-6 py-3">Due Date</th>
+                                <th className="px-6 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {tasks.slice(0, 5).map(task => ( // Show only top 5 recent tasks
+                                <tr key={task.id} className="border-b hover:bg-slate-50">
+                                    <td className="px-6 py-4 font-medium text-slate-900">{task.videoTitle}</td>
+                                    <td className="px-6 py-4">
+                                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusChipStyle(task.status)}`}>
+                                            {task.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4">{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : 'N/A'}</td>
+                                    <td className="px-6 py-4 text-right">
+                                        <button onClick={() => onTaskClick(task)} className="font-medium text-blue-600 hover:underline">View Details</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 )}
             </div>
         </div>

@@ -1,155 +1,99 @@
-import React, { useState } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../services/firebase';
+import React, { useState, useEffect } from 'react';
 import { ICONS } from '../../constants';
 
-const ProfileView = ({ userProfile }) => {
-    const [formData, setFormData] = useState({
-        name: userProfile?.name || '',
-        email: userProfile?.email || '',
-        phone: userProfile?.mobileNumber || '',
-        address: userProfile?.address || ''
-    });
-    const [isSaving, setIsSaving] = useState(false);
-    const [saveMessage, setSaveMessage] = useState('');
+const ProfileView: React.FC<{ userProfile: any }> = ({ userProfile }) => {
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    scriptId: '', 
+  });
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsSaving(true);
-        setSaveMessage('');
+  useEffect(() => {
+    if (userProfile) {
+        const scriptIdSuffix = (userProfile.mobileNumber || '').slice(-4).padStart(4, '0');
+        const scriptId = `SCP${scriptIdSuffix}`;
 
-        try {
-            if (userProfile?.uid) {
-                await updateDoc(doc(db, 'users', userProfile.uid), {
-                    name: formData.name,
-                    email: formData.email,
-                    mobileNumber: formData.phone,
-                    address: formData.address
-                });
-                setSaveMessage('Profile updated successfully!');
-            }
-        } catch (error) {
-            console.error('Error updating profile:', error);
-            setSaveMessage('Error updating profile. Please try again.');
-        } finally {
-            setIsSaving(false);
+        setFormData({
+            name: userProfile.name || '',
+            email: userProfile.email || '',
+            scriptId: scriptId,
+        });
+    }
+  }, [userProfile]);
+
+  return (
+    <div className="max-w-3xl mx-auto p-6 space-y-8">
+      {/* Header */}
+      <div className="text-center space-y-2 animate-fade-in">
+        <h1 className="text-3xl font-extrabold text-slate-900">Your Profile</h1>
+        <p className="text-slate-500">View your personal details and script identity.</p>
+      </div>
+
+      {/* Form - Now a read-only display */}
+      <div className="space-y-6">
+        {[
+          {
+            label: 'Name',
+            icon: ICONS.userCircle,
+            name: 'name',
+            type: 'text',
+            placeholder: 'Your full name',
+            disabled: true
+          },
+          {
+            label: 'Email',
+            icon: ICONS.mail,
+            name: 'email',
+            type: 'email',
+            placeholder: 'Your email address',
+            disabled: true 
+          },
+          {
+            label: 'Script ID',
+            icon: ICONS.film,
+            name: 'scriptId',
+            type: 'text',
+            placeholder: 'Your script writer ID',
+            disabled: true
+          }
+        ].map((field, idx) => (
+          <div
+            key={field.name}
+            className={`bg-white p-5 rounded-2xl shadow-sm border border-slate-100 transition-all duration-300 transform animate-slide-up`}
+            style={{ animationDelay: `${idx * 0.1}s` }}
+          >
+            <label className="block text-sm font-semibold text-slate-700 mb-2 flex items-center">
+              <span className="mr-2 text-slate-500">{field.icon}</span>
+              {field.label}
+            </label>
+            <input
+              type={field.type}
+              name={field.name}
+              value={formData[field.name as keyof typeof formData]}
+              placeholder={field.placeholder}
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none transition-all duration-200 placeholder:text-slate-400 disabled:bg-slate-100 cursor-not-allowed"
+              disabled={field.disabled}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Global Animations */}
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
-    };
-
-    return (
-        <div className="space-y-8 max-w-4xl mx-auto">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900">Your Profile</h1>
-                <p className="text-slate-600">Manage your portfolio, skills, and account security.</p>
-            </div>
-
-            {saveMessage && (
-                <div className={`p-4 rounded-lg ${saveMessage.includes('success') ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-                    {saveMessage}
-                </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
-                        <span className="mr-2">{ICONS.userCircle}</span>
-                        Name
-                    </h3>
-                    <input
-                        type="text"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        placeholder="Enter your name"
-                    />
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
-                        <span className="mr-2">{ICONS.mail}</span>
-                        Email
-                    </h3>
-                    <input
-                        type="email"
-                        name="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        placeholder="Enter your email"
-                    />
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
-                        <span className="mr-2">{ICONS.phone}</span>
-                        Phone
-                    </h3>
-                    <input
-                        type="tel"
-                        name="phone"
-                        value={formData.phone}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        placeholder="Enter your phone number"
-                    />
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 md:col-span-2 lg:col-span-3">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4 flex items-center">
-                        <span className="mr-2">{ICONS.layout}</span>
-                        Address
-                    </h3>
-                    <input
-                        type="text"
-                        name="address"
-                        value={formData.address}
-                        onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-900"
-                        placeholder="Enter your address"
-                    />
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
-                    <h3 className="font-bold text-lg text-slate-800 mb-4">Account Info</h3>
-                    <div className="space-y-2">
-                        <div className="text-sm text-slate-600">
-                            <span className="font-medium">Role:</span> Script Writer
-                        </div>
-                        <div className="text-sm text-slate-600">
-                            <span className="font-medium">ID:</span> {userProfile?.uid?.substring(0, 8) || 'N/A'}
-                        </div>
-                        <div className="text-sm text-slate-600">
-                            <span className="font-medium">Joined:</span> {userProfile?.createdAt ? new Date(userProfile.createdAt).toLocaleDateString() : 'N/A'}
-                        </div>
-                    </div>
-                </div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 flex items-end">
-                    <button
-                        type="submit"
-                        disabled={isSaving}
-                        className="w-full bg-slate-900 text-white py-2 px-4 rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
-                    >
-                        {isSaving ? (
-                            <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                Saving...
-                            </>
-                        ) : (
-                            <>
-                                <span className="mr-2">{ICONS.check}</span>
-                                Save Changes
-                            </>
-                        )}
-                    </button>
-                </div>
-            </form>
-        </div>
-    );
+        @keyframes slide-up {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fade-in 0.6s ease-out forwards; }
+        .animate-slide-up { animation: slide-up 0.5s ease-out forwards; }
+      `}</style>
+    </div>
+  );
 };
 
 export default ProfileView;

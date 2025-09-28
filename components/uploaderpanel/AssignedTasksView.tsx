@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { ICONS } from '../../constants';
-import ReelUploadView from './ReelUploadView';
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import authService from '../../services/authService';
+import ReelUploadView from './ReelUploadView';
+import { ICONS } from '../../constants';
 
-const AssignedTaskCard = ({ reel, onClick }) => {
+const AssignedTaskCard = ({ campaign, onClick }) => {
     return (
         <div
-            onClick={() => onClick(reel)}
+            onClick={() => onClick(campaign)}
             className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80 hover:shadow-lg hover:border-slate-300 transition-all duration-300 cursor-pointer"
         >
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h3 className="text-lg font-bold text-slate-800 mb-1">Reel ID: {reel.id}</h3>
-                    <p className="text-sm text-slate-600">Duration: {reel.duration}</p>
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">{campaign.name}</h3>
+                    <p className="text-sm text-slate-600">Brand: {campaign.brandName}</p>
                 </div>
                 <div className="text-slate-400">{ICONS.video}</div>
             </div>
@@ -24,7 +24,7 @@ const AssignedTaskCard = ({ reel, onClick }) => {
                     Upload Reel
                 </button>
                 <button className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">
-                    Preview
+                    Details
                 </button>
             </div>
         </div>
@@ -32,14 +32,17 @@ const AssignedTaskCard = ({ reel, onClick }) => {
 };
 
 const AssignedTasksView = () => {
-    const [selectedReel, setSelectedReel] = useState(null);
-    const [assignedReels, setAssignedReels] = useState([]);
+    const [selectedCampaign, setSelectedCampaign] = useState(null);
+    const [assignedCampaigns, setAssignedCampaigns] = useState([]);
     const [userProfile, setUserProfile] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const unsubscribe = authService.onAuthStateChange((state) => {
             if (state.isAuthenticated && state.userProfile) {
                 setUserProfile(state.userProfile);
+            } else {
+                setUserProfile(null);
             }
         });
 
@@ -49,52 +52,65 @@ const AssignedTasksView = () => {
     useEffect(() => {
         if (!userProfile) return;
 
-        const fetchTasks = async () => {
-            try {
-                const tasksRef = collection(db, 'uploader_tasks');
-                const q = query(tasksRef, where('assignedTo', '==', userProfile.email), orderBy('createdAt', 'desc'));
-                const querySnapshot = await getDocs(q);
-                const fetchedTasks = querySnapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-                setAssignedReels(fetchedTasks);
-            } catch (error) {
-                console.error('Error fetching tasks:', error);
-            }
-        };
+        setLoading(true);
+        const campaignsRef = collection(db, 'campaigns');
+        const q = query(campaignsRef, where('assignedUploader', '==', userProfile.uid), where('status', '==', 'Active'));
 
-        fetchTasks();
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const fetchedCampaigns = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setAssignedCampaigns(fetchedCampaigns);
+            setLoading(false);
+        }, (error) => {
+            console.error('Error fetching assigned campaigns:', error);
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
     }, [userProfile]);
 
-    const handleReelClick = (reel) => {
-        setSelectedReel(reel);
+    const handleCampaignClick = (campaign) => {
+        setSelectedCampaign(campaign);
     };
 
     const handleBack = () => {
-        setSelectedReel(null);
+        setSelectedCampaign(null);
     };
 
-    if (selectedReel) {
-        return <ReelUploadView reel={selectedReel} onBack={handleBack} />;
+    if (selectedCampaign) {
+        // Assuming ReelUploadView can be adapted or a new detail view is used
+        return <ReelUploadView campaign={selectedCampaign} onBack={handleBack} />;
+    }
+
+    if (loading) {
+        return <div className="text-center p-8">Loading tasks...</div>;
     }
 
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-1">Assigned Tasks</h1>
-                <p className="text-slate-600">Click on any reel to upload to Instagram</p>
+                <h1 className="text-2xl font-bold text-slate-900 mb-1">Assigned Campaigns</h1>
+                <p className="text-slate-600">Here are the campaigns assigned to you for reel uploads.</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {assignedReels.map(reel => (
-                    <AssignedTaskCard
-                        key={reel.id}
-                        reel={reel}
-                        onClick={handleReelClick}
-                    />
-                ))}
-            </div>
+            {assignedCampaigns.length > 0 ? (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {assignedCampaigns.map(campaign => (
+                        <AssignedTaskCard
+                            key={campaign.id}
+                            campaign={campaign}
+                            onClick={handleCampaignClick}
+                        />
+                    ))}
+                </div>
+            ) : (
+                <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Tasks Assigned</h3>
+                    <p className="text-slate-600">You currently have no campaigns assigned for reel uploads.</p>
+                </div>
+            )}
 
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                 <div className="flex items-start gap-3">
@@ -102,10 +118,9 @@ const AssignedTasksView = () => {
                     <div>
                         <h3 className="font-medium text-blue-900 mb-1">Upload Instructions</h3>
                         <ul className="text-sm text-blue-800 space-y-1">
-                            <li>• Click on any reel to open upload options</li>
-                            <li>• Choose between Auto Upload or Manual Upload</li>
-                            <li>• Auto Upload will post directly to Instagram</li>
-                            <li>• Manual Upload opens Instagram for manual posting</li>
+                            <li>• Click on a campaign to view details and upload reels.</li>
+                            <li>• Follow the campaign guidelines for each upload.</li>
+                            <li>• Track your earnings and performance in the dashboard.</li>
                         </ul>
                     </div>
                 </div>

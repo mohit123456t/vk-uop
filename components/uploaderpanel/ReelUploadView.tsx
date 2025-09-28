@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ICONS } from '../../constants';
 
-const ReelUploadView = ({ reel, onBack }) => {
+const ReelUploadView = ({ campaign, onBack }) => {
     const [uploadType, setUploadType] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
@@ -9,13 +9,13 @@ const ReelUploadView = ({ reel, onBack }) => {
         setIsUploading(true);
         // Simulate auto upload process
         setTimeout(() => {
-            alert(`Reel ${reel.id} uploaded automatically to Instagram!`);
+            alert(`Reels for campaign ${campaign.name} uploaded automatically to Instagram!`);
             setIsUploading(false);
         }, 2000);
     };
 
     const handleManualUpload = () => {
-        alert(`Opening Instagram for manual upload of Reel ${reel.id}...`);
+        alert(`Opening Instagram for manual upload of reels for campaign ${campaign.name}...`);
         // Here you would integrate with Instagram API for manual upload
     };
 
@@ -27,46 +27,32 @@ const ReelUploadView = ({ reel, onBack }) => {
                     className="flex items-center text-slate-600 hover:text-slate-800"
                 >
                     <span className="mr-2">←</span>
-                    Back to Tasks
+                    Back to Campaigns
                 </button>
-                <h1 className="text-2xl font-bold text-slate-900">Upload Reel</h1>
+                <h1 className="text-2xl font-bold text-slate-900">Upload Reels for {campaign.name}</h1>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
                 <div className="flex justify-between items-start mb-4">
                     <div>
-                        <h3 className="text-lg font-bold text-slate-800 mb-1">Reel ID: {reel.id}</h3>
+                        <h3 className="text-lg font-bold text-slate-800 mb-1">Campaign: {campaign.name}</h3>
                         <div className="bg-slate-100 px-3 py-1 rounded-full text-sm text-slate-600 inline-block">
-                            Ready for Upload
+                            Status: {campaign.status}
                         </div>
                     </div>
                     <div className="text-slate-400">{ICONS.video}</div>
                 </div>
 
-                {/* Video Preview Placeholder */}
-                <div className="bg-slate-100 rounded-lg p-8 text-center mb-6">
-                    <div className="w-16 h-16 bg-slate-300 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-2xl">🎬</span>
-                    </div>
-                    <p className="text-slate-600">Video Preview</p>
-                    <p className="text-sm text-slate-500 mt-1">Duration: {reel.duration}</p>
-                </div>
-
+                {/* Campaign Details */}
                 <div className="space-y-4">
                     <div>
-                        <p className="text-sm font-medium text-slate-700 mb-1">Script Content:</p>
-                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">{reel.script}</p>
+                        <p className="text-sm font-medium text-slate-700 mb-1">Brand:</p>
+                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">{campaign.brandName}</p>
                     </div>
 
                     <div>
-                        <p className="text-sm font-medium text-slate-700 mb-1">Hashtags:</p>
-                        <div className="flex flex-wrap gap-1">
-                            {reel.hashtags.map((hashtag, index) => (
-                                <span key={index} className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                    {hashtag}
-                                </span>
-                            ))}
-                        </div>
+                        <p className="text-sm font-medium text-slate-700 mb-1">Description:</p>
+                        <p className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">{campaign.description || 'No description provided.'}</p>
                     </div>
                 </div>
             </div>

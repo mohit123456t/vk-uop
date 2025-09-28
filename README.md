@@ -20,3 +20,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1Ugi5GA5UKhnzgZ-DrDgbKo
    `npm run dev`
 # vives-kart-upadaed
 # vives-kart-upadaed
+# vk-uop
+# vk-uop
+# vk-uop

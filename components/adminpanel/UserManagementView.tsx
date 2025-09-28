@@ -1,17 +1,16 @@
 
-import React, { useState } from 'react';
-import { addDoc, collection } from 'firebase/firestore';
+import React, { useState, useEffect } from 'react';
+import { collection, getDocs, query, where, addDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import BrandControlView from './BrandControlView';
 
-const AddUserForm = ({ onClose, onUserAdded }) => {
+const AddBrandForm = ({ onClose, onUserAdded }) => {
     const [formData, setFormData] = useState({
         name: '',
         email: '',
         password: '',
         mobile: '',
         brandName: '',
-        role: 'brand' // default role
+        role: 'brand'
     });
     const [loading, setLoading] = useState(false);
 
@@ -23,7 +22,7 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
             onUserAdded();
             onClose();
         } catch (error) {
-            console.error('Error adding user:', error);
+            console.error('Error adding brand:', error);
         }
         setLoading(false);
     };
@@ -33,8 +32,8 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
     };
 
     return (
-        <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-4">Add New User</h2>
+        <div className="bg-white p-6 rounded-lg shadow mb-6">
+            <h2 className="text-xl font-bold mb-4">Add New Brand</h2>
             <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Name</label>
@@ -58,7 +57,7 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
                 </div>
                 <div className="flex space-x-2">
                     <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
-                        {loading ? 'Adding...' : 'Add User'}
+                        {loading ? 'Adding...' : 'Add Brand'}
                     </button>
                     <button type="button" onClick={onClose} className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">Cancel</button>
                 </div>
@@ -67,54 +66,73 @@ const AddUserForm = ({ onClose, onUserAdded }) => {
     );
 };
 
-const BrandDetailView = ({ brand, onBack }) => {
-    // For now, show basic brand details. Can expand later with campaigns, payments, etc.
-    return (
-        <div className="bg-white p-6 rounded-lg shadow">
-            <button onClick={onBack} className="mb-4 text-blue-600 hover:underline">← Back to Brands</button>
-            <h2 className="text-2xl font-bold mb-4">{brand.name} Details</h2>
-            <div className="grid grid-cols-2 gap-4">
-                <div><strong>Status:</strong> {brand.status}</div>
-                <div><strong>Active Campaigns:</strong> {brand.campaigns}</div>
-                <div><strong>Total Spend:</strong> {brand.totalSpend}</div>
-                <div><strong>ID:</strong> {brand.id}</div>
-            </div>
-            {/* Add more details like campaigns, payments, etc. later */}
-        </div>
-    );
-};
-
 const UserManagementView = () => {
-    const [view, setView] = useState('list'); // 'list', 'addUser', 'brandDetail'
-    const [selectedBrand, setSelectedBrand] = useState(null);
+    const [showAddBrandForm, setShowAddBrandForm] = useState(false);
+    const [brands, setBrands] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    const handleAddUser = () => setView('addUser');
-    const handleCloseForm = () => setView('list');
+    const fetchBrands = async () => {
+        setLoading(true);
+        const q = query(collection(db, 'users'), where('role', '==', 'brand'));
+        const querySnapshot = await getDocs(q);
+        const brandsData = [];
+        querySnapshot.forEach(doc => brandsData.push({ id: doc.id, ...doc.data() }));
+        setBrands(brandsData);
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchBrands();
+    }, []);
+
     const handleUserAdded = () => {
-        // Refresh brands or users if needed
-        setView('list');
+        fetchBrands(); // Refresh list after adding a new brand
     };
-    const handleViewBrand = (brand) => {
-        setSelectedBrand(brand);
-        setView('brandDetail');
-    };
-    const handleBackToList = () => setView('list');
 
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
-                {view === 'list' && (
-                    <button onClick={handleAddUser} className="text-sm font-medium p-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700">
-                        Add New User
-                    </button>
-                )}
+                <h1 className="text-2xl font-bold text-slate-900">Brand Management</h1>
+                <button onClick={() => setShowAddBrandForm(!showAddBrandForm)} className="text-sm font-medium p-2 rounded-lg bg-slate-800 text-white hover:bg-slate-700">
+                    {showAddBrandForm ? 'Close Form' : 'Add New Brand'}
+                </button>
             </div>
 
-            <div>
-                {view === 'addUser' && <AddUserForm onClose={handleCloseForm} onUserAdded={handleUserAdded} />}
-                {view === 'brandDetail' && <BrandDetailView brand={selectedBrand} onBack={handleBackToList} />}
-                {view === 'list' && <BrandControlView onViewBrand={handleViewBrand} />}
+            {showAddBrandForm && <AddBrandForm onClose={() => setShowAddBrandForm(false)} onUserAdded={handleUserAdded} />}
+
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200/80">
+                <div className="p-6 border-b border-slate-200">
+                    <h2 className="text-lg font-semibold text-slate-900">Registered Brands</h2>
+                </div>
+                {loading ? (
+                     <div className="p-6 text-center">Loading brands...</div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-max">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Brand Name</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Email</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Mobile</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {brands.map(brand => (
+                                    <tr key={brand.id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{brand.name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brand.brandName}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brand.email}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brand.mobile}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+                 {brands.length === 0 && !loading && (
+                    <div className="p-6 text-center text-slate-500">No brands found.</div>
+                )}
             </div>
         </div>
     );

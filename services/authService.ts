@@ -256,6 +256,26 @@ class AuthService {
     }
   }
 
+  // Get users by role
+  async getUsersByRole(role: UserRole | UserRole[]): Promise<UserProfile[]> {
+    try {
+      const usersRef = collection(db, 'users');
+      const roles = Array.isArray(role) ? role : [role];
+      const q = query(usersRef, where('role', 'in', roles));
+      const querySnapshot = await getDocs(q);
+
+      const users: UserProfile[] = [];
+      querySnapshot.forEach((doc) => {
+        users.push({ ...doc.data(), uid: doc.id } as UserProfile);
+      });
+
+      return users;
+    } catch (error) {
+      console.error('Error getting users by role:', error);
+      return [];
+    }
+  }
+
   // Check if user has required role
   hasRole(requiredRole: UserRole | UserRole[]): boolean {
     if (!this.userProfile) return false;

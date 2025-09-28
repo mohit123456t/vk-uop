@@ -22,7 +22,6 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
   const [isRegister, setIsRegister] = useState(false);
 
   useEffect(() => {
-    // Check if user is already logged in
     const unsubscribe = authService.onAuthStateChange((authState) => {
       if (authState.isAuthenticated && authState.userProfile) {
         handleSuccessfulLogin(authState.userProfile);
@@ -37,7 +36,6 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
       onLoginSuccess(userProfile);
     }
 
-    // Redirect based on role
     switch (userProfile.role) {
       case 'brand':
         navigate('/brand');
@@ -81,8 +79,6 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
     }
   };
 
-
-
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -99,11 +95,10 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
         ownerName
       };
 
-      const userProfile = await authService.registerUser(email, password, userData);
+      await authService.registerUser(email, password, userData);
       setMessage('Brand account created successfully! Please login with your credentials.');
       setIsRegister(false);
 
-      // Clear form
       setName('');
       setBrandName('');
       setAddress('');
@@ -130,8 +125,8 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
   };
 
   return (
-    <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6">
-      <div className="absolute top-6 left-6 text-slate-900">
+    <div className="relative z-10 flex flex-col items-center justify-center min-h-screen p-6 bg-slate-50">
+      <div className="absolute top-6 left-6">
         <Logo />
       </div>
 
@@ -144,7 +139,7 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
         </p>
       </div>
 
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-lg">
         <form onSubmit={isRegister ? handleRegister : handleLogin} className="space-y-6">
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
@@ -219,7 +214,7 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
                   onChange={(e) => setOwnerName(e.target.value)}
                   required
                   className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter owner's name"
+                  placeholder="Enter owner\'s name"
                 />
               </div>
 
@@ -270,7 +265,7 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg transition-all duration-300 transform hover:scale-105 btn-hover-effect disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-black rounded-lg transition-all duration-300 transform hover:scale-105 btn-hover-effect disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading
               ? (isRegister ? 'Creating Account...' : 'Signing in...')
@@ -279,7 +274,6 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
           </button>
         </form>
 
-        {/* Divider */}
         <div className="mt-6 mb-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -291,7 +285,6 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
           </div>
         </div>
 
-        {/* Google Sign In */}
         <button
           type="button"
           onClick={handleGoogleLogin}
@@ -319,19 +312,17 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
           {loading ? 'Signing in...' : 'Continue with Google'}
         </button>
 
-        {/* Toggle between Login and Signup */}
         <button
           onClick={() => {
             setIsRegister(!isRegister);
             setError('');
             setMessage('');
           }}
-          className="mt-4 text-sm text-slate-600 hover:text-slate-900 transition-colors w-full text-center"
+          className="mt-4 text-sm text-black hover:text-slate-900 transition-colors w-full text-center"
         >
           {isRegister ? 'Already have an account? Sign In' : 'Need a brand account? Sign Up'}
         </button>
 
-        {/* Back to Home */}
         <button
           onClick={() => navigate('/')}
           className="mt-8 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors w-full text-center"

@@ -8,15 +8,20 @@ import ProfileView from './scriptwriterpanel/ProfileView';
 import CollaborationView from './scriptwriterpanel/CollaborationView';
 import { ICONS } from '../constants';
 
-const NavItem = ({ icon, label, active, onClick }) => (
+const NavItem = ({ icon, label, active, onClick, collapsed }) => (
     <button
         onClick={onClick}
-        className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${active ? 'bg-slate-700/50 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'} ${!label ? 'justify-center' : ''}`}
-        aria-label={label || 'Sidebar item'}
+        className={`flex items-center w-full text-left px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 ${
+            active 
+                ? 'bg-blue-50 text-blue-600 shadow-sm' 
+                : 'text-slate-500 hover:bg-gray-100 hover:text-slate-900'
+        } ${collapsed ? 'justify-center' : ''}`
+    }
+        aria-label={label}
         tabIndex={0}
     >
-        <span className="mr-3">{icon}</span>
-        {label ? <span>{label}</span> : null}
+        <span className={collapsed ? '' : 'mr-3'}>{icon}</span>
+        {!collapsed && <span>{label}</span>}
     </button>
 );
 
@@ -31,13 +36,18 @@ const ScriptWriterPanel = () => {
             if (state.isAuthenticated && state.userProfile) {
                 if (state.userProfile.role === 'script_writer') {
                     setUserProfile(state.userProfile);
+                } else {
+                    // If user is not a script writer, redirect them
+                    navigate('/');
                 }
+            } else if (!state.isLoading) {
+                 navigate('/');
             }
         });
 
-        return unsubscribe;
-    }, []);
-
+        return () => unsubscribe();
+    }, [navigate]);
+    
     useEffect(() => {
         localStorage.setItem('scriptWriterActiveView', activeView);
     }, [activeView]);
@@ -45,7 +55,7 @@ const ScriptWriterPanel = () => {
     const handleLogout = async () => {
         try {
             await authService.logout();
-            navigate('/login');
+            navigate('/'); // Redirect to landing page
         } catch (error) {
             console.error('Logout error:', error);
         }
@@ -60,7 +70,8 @@ const ScriptWriterPanel = () => {
             case 'payments':
                 return <PaymentsView userProfile={userProfile} />;
             case 'profile':
-                return <ProfileView userProfile={userProfile} />;
+                // Pass a function to refresh the profile after update
+                return <ProfileView userProfile={userProfile} onProfileUpdate={setUserProfile} />;
             case 'collaboration':
                 return <CollaborationView userProfile={userProfile} />;
             default:
@@ -69,77 +80,85 @@ const ScriptWriterPanel = () => {
     };
 
     return (
-        <div className="flex h-screen bg-slate-900 text-white">
-            <aside className={`bg-slate-800 border-r border-slate-700 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'} flex flex-col flex-shrink-0`}>
-                <div className="p-4 border-b border-slate-700">
-                    <div className="flex items-center justify-between">
-                        <h2 className={`font-bold text-lg ${sidebarCollapsed ? 'hidden' : 'block'}`}>Script Writer</h2>
-                        <button
-                            onClick={() => setSidebarCollapsed(p => !p)}
-                            className="text-slate-400 hover:text-white p-1"
-                            aria-label="Toggle sidebar"
-                        >
-                            {sidebarCollapsed ? ICONS.menu : ICONS.x}
-                        </button>
-                    </div>
+        <div className="flex h-screen bg-gray-50 font-sans">
+            {/* Sidebar */}
+            <aside 
+                className={`bg-white border-r border-gray-200 transition-all duration-300 ease-in-out ${
+                    sidebarCollapsed ? 'w-20' : 'w-64'
+                } flex flex-col flex-shrink-0`}
+            >
+                {/* Logo and collapse button */}
+                <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+                    {!sidebarCollapsed && <h1 className="font-bold text-lg text-slate-800">Script Panel</h1>}
+                    <button
+                        onClick={() => setSidebarCollapsed(p => !p)}
+                        className="text-slate-500 hover:text-slate-900 p-1 rounded-full hover:bg-gray-100 transition-all"
+                        aria-label="Toggle sidebar"
+                    >
+                        {sidebarCollapsed ? ICONS.menu : ICONS.x}
+                    </button>
                 </div>
 
+                {/* Navigation */}
                 <nav className="flex-1 p-4 space-y-2">
-                    <NavItem
-                        icon={ICONS.chart}
-                        label="Dashboard"
-                        active={activeView === 'dashboard'}
-                        onClick={() => setActiveView('dashboard')}
-                    />
-                    <NavItem
-                        icon={ICONS.clipboard}
-                        label="Tasks"
-                        active={activeView === 'tasks'}
-                        onClick={() => setActiveView('tasks')}
-                    />
-                    <NavItem
-                        icon={ICONS.money}
-                        label="Payments"
-                        active={activeView === 'payments'}
-                        onClick={() => setActiveView('payments')}
-                    />
-                    <NavItem
-                        icon={ICONS.users}
-                        label="Profile"
-                        active={activeView === 'profile'}
-                        onClick={() => setActiveView('profile')}
-                    />
-                    <NavItem
-                        icon={ICONS.message}
-                        label="Collaboration"
-                        active={activeView === 'collaboration'}
-                        onClick={() => setActiveView('collaboration')}
-                    />
+                    {[
+                        { id: 'dashboard', label: 'Dashboard', icon: ICONS.chart },
+                        { id: 'tasks', label: 'Tasks', icon: ICONS.clipboard },
+                        { id: 'payments', label: 'Payments', icon: ICONS.money },
+                        { id: 'collaboration', label: 'Collaboration', icon: ICONS.message },
+                        { id: 'profile', label: 'Profile', icon: ICONS.userCircle },
+                    ].map(item => (
+                        <NavItem
+                            key={item.id}
+                            icon={item.icon}
+                            label={item.label}
+                            active={activeView === item.id}
+                            onClick={() => setActiveView(item.id)}
+                            collapsed={sidebarCollapsed}
+                        />
+                    ))}
                 </nav>
 
-                <div className="p-4 border-t border-slate-700">
+                {/* Logout section */}
+                <div className="p-4 border-t border-gray-200">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center w-full text-left px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white rounded-lg transition-colors"
+                        className={`flex items-center w-full text-left px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 text-slate-500 hover:bg-red-50 hover:text-red-600 ${
+                            sidebarCollapsed ? 'justify-center' : ''
+                        }`}
                     >
-                        <span className="mr-3">{ICONS.logout}</span>
+                        <span className={sidebarCollapsed ? '' : 'mr-3'}>{ICONS.logout}</span>
                         {!sidebarCollapsed && <span>Logout</span>}
                     </button>
                 </div>
             </aside>
 
+            {/* Main Content */}
             <main className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
+                {/* Header */}
+                <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 flex-shrink-0">
                     <div className="flex items-center space-x-4">
-                        <h1 className="text-xl font-bold text-slate-900 capitalize">{activeView.replace('_', ' ')}</h1>
+                        <h1 className="text-xl font-bold text-slate-800 capitalize">
+                            {activeView.replace('_', ' ')}
+                        </h1>
                     </div>
                     <div className="flex items-center space-x-4">
-                        <div className="w-8 h-8 rounded-full bg-slate-300 flex items-center justify-center font-bold text-slate-600">
-                            {userProfile?.name?.charAt(0)}
+                         <div className="relative">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center font-bold text-white">
+                                {userProfile?.name?.charAt(0).toUpperCase()}
+                            </div>
+                             <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+                        </div>
+                        <div>
+                             <p className="text-sm font-semibold text-slate-800">{userProfile?.name}</p>
+                             <p className="text-xs text-slate-500">{userProfile?.role?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
                         </div>
                     </div>
                 </header>
-                <div className="flex-1 overflow-y-auto bg-slate-100 p-8">{renderView()}</div>
+                {/* Page Content */}
+                <div className="flex-1 overflow-y-auto bg-gray-50 p-6 md:p-8">
+                    {renderView()}
+                </div>
             </main>
         </div>
     );
