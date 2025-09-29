@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import authService from '../services/authService';
 import Logo from './Logo';
 
-interface RoleBasedPortalLoginProps {
-  onLoginSuccess?: (userProfile: any) => void;
-}
-
-const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSuccess }) => {
+// This component is now a dedicated, stateless login/signup form.
+// It no longer automatically redirects based on a previous session.
+const RoleBasedPortalLogin: React.FC = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,21 +19,8 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
   const [message, setMessage] = useState('');
   const [isRegister, setIsRegister] = useState(false);
 
-  useEffect(() => {
-    const unsubscribe = authService.onAuthStateChange((authState) => {
-      if (authState.isAuthenticated && authState.userProfile) {
-        handleSuccessfulLogin(authState.userProfile);
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
-
+  // This function is called ONLY after a user actively tries to log in.
   const handleSuccessfulLogin = (userProfile: any) => {
-    if (onLoginSuccess) {
-      onLoginSuccess(userProfile);
-    }
-
     switch (userProfile.role) {
       case 'brand':
         navigate('/brand');
@@ -59,7 +44,10 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
         navigate('/super-admin');
         break;
       default:
-        navigate('/brand');
+        // Default to brand or a neutral page if role is unknown
+        navigate('/'); 
+        setError("Could not determine user role. Please contact support.");
+        break;
     }
   };
 
@@ -70,10 +58,11 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
     setMessage('');
 
     try {
-      const userProfile = await authService.loginWithEmail(email, password);
+      // Use the new, cleaner login method from the service
+      const userProfile = await authService.login(email, password);
       handleSuccessfulLogin(userProfile);
     } catch (error: any) {
-      setError(error.message);
+      setError(error.message || "Failed to login. Please check your credentials.");
     } finally {
       setLoading(false);
     }
@@ -98,14 +87,16 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
       await authService.registerUser(email, password, userData);
       setMessage('Brand account created successfully! Please login with your credentials.');
       setIsRegister(false);
-
+      // Clear form fields after registration
       setName('');
       setBrandName('');
       setAddress('');
       setMobile('');
       setOwnerName('');
+      setEmail('');
+      setPassword('');
     } catch (error: any) {
-      setError(error.message);
+      setError(error.message || "Failed to register account.");
     } finally {
       setLoading(false);
     }
@@ -118,7 +109,7 @@ const RoleBasedPortalLogin: React.FC<RoleBasedPortalLoginProps> = ({ onLoginSucc
       const userProfile = await authService.loginWithGoogle();
       handleSuccessfulLogin(userProfile);
     } catch (error: any) {
-      setError(error.message);
+      setError(error.message || "Google login failed.");
     } finally {
       setLoading(false);
     }

@@ -81,11 +81,11 @@ const DashboardView = ({ onViewChange }) => {
 
   // Compute dashboard data when campaigns or users change
   useEffect(() => {
-    if (campaigns.length > 0 || users.length > 0) {
-      const activeCampaigns = campaigns.filter((c: any) => c.status === 'Active').length;
-      const pendingCampaigns = campaigns.filter((c: any) => c.status === 'Pending Approval').length;
-      const totalRevenue = campaigns.reduce((sum: number, c: any) => sum + (c.budget || 0), 0);
-      const totalViews = campaigns.reduce((sum: number, c: any) => sum + (c.totalViews || 0), 0);
+    if ((campaigns && campaigns.length > 0) || (users && users.length > 0)) {
+      const activeCampaigns = campaigns?.filter((c: any) => c.status === 'Active').length || 0;
+      const pendingCampaigns = campaigns?.filter((c: any) => c.status === 'Pending Approval').length || 0;
+      const totalRevenue = campaigns?.reduce((sum: number, c: any) => sum + (c.budget || 0), 0) || 0;
+      const totalViews = campaigns?.reduce((sum: number, c: any) => sum + (c.totalViews || 0), 0) || 0;
 
       const monthlyRevenue = [];
       for (let i = 5; i >= 0; i--) {
@@ -93,7 +93,7 @@ const DashboardView = ({ onViewChange }) => {
         date.setMonth(date.getMonth() - i);
         const monthName = date.toLocaleString('default', { month: 'short' });
         const monthRevenue = campaigns
-          .filter((c: any) => {
+          ?.filter((c: any) => {
             const campaignDate = c.createdAt ? new Date(c.createdAt) : null;
             return (
               campaignDate &&
@@ -101,7 +101,7 @@ const DashboardView = ({ onViewChange }) => {
               campaignDate.getFullYear() === date.getFullYear()
             );
           })
-          .reduce((sum: number, c: any) => sum + (c.budget || 0), 0);
+          ?.reduce((sum: number, c: any) => sum + (c.budget || 0), 0) || 0;
 
         monthlyRevenue.push({
           name: monthName,

@@ -1,413 +1,174 @@
 import {
+  Auth,
+  getAuth,
+  onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signOut,
-  onAuthStateChanged,
-  GoogleAuthProvider,
   signInWithPopup,
+  GoogleAuthProvider,
+  signOut,
   User
 } from 'firebase/auth';
-import {
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
-  collection,
-  query,
-  where,
-  getDocs
-} from 'firebase/firestore';
-import { ref, set } from 'firebase/database';
-import { auth, db, database } from './firebase';
+import { doc, getDoc, setDoc, serverTimestamp, onSnapshot, collection, query, where, getDocs, DocumentData } from 'firebase/firestore';
+import { app, db } from './firebase';
 
-export interface UserProfile {
+// Main user profile interface
+export interface UserProfile extends DocumentData {
   uid: string;
+  name?: string;
   email: string;
-  name: string;
-  role: UserRole;
-  brandName?: string;
-  address?: string;
-  mobileNumber?: string;
-  ownerName?: string;
-  createdAt: string;
-  lastLoginAt: string;
-  isActive: boolean;
+  role?: string;
+  createdAt?: any;
+  lastLoginAt?: any;
 }
 
-export type UserRole =
-  | 'brand'
-  | 'uploader'
-  | 'script_writer'
-  | 'video_editor'
-  | 'thumbnail_maker'
-  | 'admin'
-  | 'super_admin';
-
+// The state broadcasted to the app
 export interface AuthState {
   user: User | null;
   userProfile: UserProfile | null;
-  isLoading: boolean;
   isAuthenticated: boolean;
+  isLoading: boolean;
 }
 
-class AuthService {
-  private currentUser: User | null = null;
-  private userProfile: UserProfile | null = null;
-  private authStateListeners: ((authState: AuthState) => void)[] = [];
+type AuthStateCallback = (state: AuthState) => void;
 
-  constructor() {
-    this.initializeAuthListener();
+class AuthService {
+  private static instance: AuthService;
+  private auth: Auth;
+  private callbacks: Set<AuthStateCallback> = new Set();
+  private currentState: AuthState = { user: null, userProfile: null, isAuthenticated: false, isLoading: true };
+  private profileUnsubscribe: (() => void) | null = null;
+
+  private constructor() {
+    this.auth = getAuth(app);
+    onAuthStateChanged(this.auth, this.handleUserChange.bind(this));
   }
 
-  private initializeAuthListener() {
-    onAuthStateChanged(auth, async (user) => {
-      this.currentUser = user;
+  public static getInstance(): AuthService {
+    if (!AuthService.instance) {
+      AuthService.instance = new AuthService();
+    }
+    return AuthService.instance;
+  }
 
-      if (user) {
-        await this.loadUserProfile(user.uid);
-      } else {
-        this.userProfile = null;
-      }
+  // Central state update and notification method
+  private updateState(newState: Partial<AuthState>) {
+    //isLoading should become false after the first check
+    this.currentState = { ...this.currentState, ...newState, isLoading: false };
+    this.callbacks.forEach(callback => callback(this.currentState));
+  }
 
-      this.notifyAuthStateListeners();
+  // Called when Firebase auth state changes (login/logout)
+  private async handleUserChange(user: User | null) {
+    if (this.profileUnsubscribe) {
+      this.profileUnsubscribe();
+      this.profileUnsubscribe = null;
+    }
+
+    if (user) {
+      // User is authenticated, listen for their profile document
+      const userRef = doc(db, 'users', user.uid);
+      this.profileUnsubscribe = onSnapshot(userRef, async (docSnap) => {
+        if (docSnap.exists()) {
+          this.updateState({ user, userProfile: { uid: docSnap.id, ...docSnap.data() } as UserProfile, isAuthenticated: true });
+        } else {
+          // This can happen if a user authenticates but their profile doc creation failed.
+          this.updateState({ user, userProfile: { uid: user.uid, email: user.email! }, isAuthenticated: true });
+        }
+      });
+    } else {
+      // User is logged out
+      this.updateState({ user: null, userProfile: null, isAuthenticated: false });
+    }
+  }
+
+  // --- Public API --- //
+
+  public onAuthStateChange(callback: AuthStateCallback): () => void {
+    this.callbacks.add(callback);
+    // Immediately give the new subscriber the current state
+    callback(this.currentState);
+    return () => this.callbacks.delete(callback);
+  }
+
+  public getCurrentState(): AuthState {
+    return this.currentState;
+  }
+
+  public async getUsersByRole(role: string): Promise<UserProfile[]> {
+    const q = query(collection(db, "users"), where("role", "==", role));
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => {
+      // The doc.id is the UID. We must ensure it's on the returned object.
+      // doc.data() contains the rest of the profile.
+      return { ...doc.data(), uid: doc.id } as UserProfile;
     });
   }
 
-  private async loadUserProfile(uid: string) {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (userDoc.exists()) {
-        this.userProfile = {
-          ...userDoc.data(),
-          uid
-        } as UserProfile;
-
-        // Update last login
-        await updateDoc(doc(db, 'users', uid), {
-          lastLoginAt: new Date().toISOString()
-        });
-      }
-    } catch (error) {
-      console.error('Error loading user profile:', error);
-    }
-  }
-
-  private notifyAuthStateListeners() {
-    const authState: AuthState = {
-      user: this.currentUser,
-      userProfile: this.userProfile,
-      isLoading: false,
-      isAuthenticated: !!this.currentUser && !!this.userProfile
-    };
-
-    this.authStateListeners.forEach(listener => listener(authState));
-  }
-
-  // Subscribe to auth state changes
-  onAuthStateChange(callback: (authState: AuthState) => void): () => void {
-    this.authStateListeners.push(callback);
-
-    // Return unsubscribe function
-    return () => {
-      const index = this.authStateListeners.indexOf(callback);
-      if (index > -1) {
-        this.authStateListeners.splice(index, 1);
-      }
-    };
-  }
-
   // Login with email and password
-  async loginWithEmail(email: string, password: string): Promise<UserProfile> {
-    try {
-      // Special handling for Super Admin
-      if (email === 'mohitmleena2@gmail.com' && password === '123456789') {
-        const superAdminProfile: UserProfile = {
-          uid: 'super-admin-temp',
-          email: 'mohitmleena2@gmail.com',
-          name: 'Super Admin',
-          role: 'super_admin',
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-          isActive: true
-        };
+  public async login(email: string, password: string): Promise<UserProfile> {
+    const userCredential = await signInWithEmailAndPassword(this.auth, email, password);
+    const user = userCredential.user;
 
-        this.userProfile = superAdminProfile;
-        this.notifyAuthStateListeners();
+    // Update last login time
+    const userRef = doc(db, 'users', user.uid);
+    await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
 
-        return superAdminProfile;
-      }
-
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      // Ensure user profile exists
-      let userProfile = await this.getUserProfile(user.uid);
-      if (!userProfile) {
-        throw new Error('User profile not found. Please contact administrator.');
-      }
-
-      return userProfile;
-    } catch (error: any) {
-      console.error('Login error:', error);
-      throw new Error(this.getAuthErrorMessage(error.code));
-    }
+    const profileSnap = await getDoc(userRef);
+    if (!profileSnap.exists()) throw new Error("User profile not found.");
+    
+    return { uid: profileSnap.id, ...profileSnap.data() } as UserProfile;
   }
 
-  // Register new user
-  async registerUser(
-    email: string,
-    password: string,
-    userData: Omit<UserProfile, 'uid' | 'createdAt' | 'lastLoginAt' | 'isActive'>
-  ): Promise<UserProfile> {
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+  // Login with Google Popup
+  public async loginWithGoogle(): Promise<UserProfile> {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(this.auth, provider);
+    const user = result.user;
+    const userRef = doc(db, 'users', user.uid);
+    const profileSnap = await getDoc(userRef);
 
-      const userProfile: UserProfile = {
-        ...userData,
+    if (profileSnap.exists()) {
+      // User exists, just update their login time
+      await setDoc(userRef, { lastLoginAt: serverTimestamp() }, { merge: true });
+      return { uid: profileSnap.id, ...profileSnap.data() } as UserProfile;
+    } else {
+      // New Google user, create their profile
+      const newUserProfile: UserProfile = {
         uid: user.uid,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        isActive: true
+        name: user.displayName || 'Google User',
+        email: user.email!,
+        role: 'brand', // Default role for new signups
+        createdAt: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
       };
-
-      // Save to Firestore
-      await setDoc(doc(db, 'users', user.uid), userProfile);
-
-      // Save to Realtime Database
-      await set(ref(database, 'users/' + user.uid), userProfile);
-
-      this.userProfile = userProfile;
-      this.notifyAuthStateListeners();
-
-      return userProfile;
-    } catch (error: any) {
-      console.error('Registration error:', error);
-      throw new Error(this.getAuthErrorMessage(error.code));
+      await setDoc(userRef, newUserProfile);
+      return newUserProfile;
     }
   }
 
-  // Login with Google OAuth
-  async loginWithGoogle(): Promise<UserProfile> {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Check if user profile exists
-      let userProfile = await this.getUserProfile(user.uid);
-
-      if (!userProfile) {
-        // Create profile for new Google user
-        const displayName = user.displayName || user.email?.split('@')[0] || 'User';
-        userProfile = {
-          uid: user.uid,
-          email: user.email!,
-          name: displayName,
-          role: 'brand', // Default role for Google sign-in
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString(),
-          isActive: true
-        };
-
-        await setDoc(doc(db, 'users', user.uid), userProfile);
-        await set(ref(database, 'users/' + user.uid), userProfile);
-      } else {
-        // Update last login
-        await updateDoc(doc(db, 'users', user.uid), {
-          lastLoginAt: new Date().toISOString()
-        });
-      }
-
-      this.userProfile = userProfile;
-      this.notifyAuthStateListeners();
-
-      return userProfile;
-    } catch (error: any) {
-      console.error('Google login error:', error);
-      throw new Error(this.getAuthErrorMessage(error.code));
-    }
+  // Register a new user (for brand owners)
+  public async registerUser(email: string, password: string, additionalData: Omit<UserProfile, 'uid' | 'email'>): Promise<void> {
+    const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+    const user = userCredential.user;
+    
+    const newUserProfile: UserProfile = {
+      uid: user.uid,
+      email,
+      ...additionalData,
+      createdAt: serverTimestamp(),
+      lastLoginAt: serverTimestamp(),
+    };
+    
+    await setDoc(doc(db, 'users', user.uid), newUserProfile);
   }
 
-  // Get user profile
-  async getUserProfile(uid: string): Promise<UserProfile | null> {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      return userDoc.exists() ? userDoc.data() as UserProfile : null;
-    } catch (error) {
-      console.error('Error getting user profile:', error);
-      return null;
-    }
-  }
-
-  // Update user profile
-  async updateUserProfile(uid: string, updates: Partial<UserProfile>): Promise<void> {
-    try {
-      await updateDoc(doc(db, 'users', uid), updates);
-      await set(ref(database, 'users/' + uid), updates);
-
-      if (this.userProfile && this.userProfile.uid === uid) {
-        this.userProfile = { ...this.userProfile, ...updates };
-        this.notifyAuthStateListeners();
-      }
-    } catch (error) {
-      console.error('Error updating user profile:', error);
-      throw error;
-    }
-  }
-
-  // Get users by role
-  async getUsersByRole(role: UserRole | UserRole[]): Promise<UserProfile[]> {
-    try {
-      const usersRef = collection(db, 'users');
-      const roles = Array.isArray(role) ? role : [role];
-      const q = query(usersRef, where('role', 'in', roles));
-      const querySnapshot = await getDocs(q);
-
-      const users: UserProfile[] = [];
-      querySnapshot.forEach((doc) => {
-        users.push({ ...doc.data(), uid: doc.id } as UserProfile);
-      });
-
-      return users;
-    } catch (error) {
-      console.error('Error getting users by role:', error);
-      return [];
-    }
-  }
-
-  // Check if user has required role
-  hasRole(requiredRole: UserRole | UserRole[]): boolean {
-    if (!this.userProfile) return false;
-
-    if (Array.isArray(requiredRole)) {
-      return requiredRole.includes(this.userProfile.role);
-    }
-
-    return this.userProfile.role === requiredRole;
-  }
-
-  // Logout
-  async logout(): Promise<void> {
-    try {
-      await signOut(auth);
-      this.currentUser = null;
-      this.userProfile = null;
-      this.notifyAuthStateListeners();
-    } catch (error) {
-      console.error('Logout error:', error);
-      throw error;
-    }
-  }
-
-  // Get current user
-  getCurrentUser(): User | null {
-    return this.currentUser;
-  }
-
-  // Get current user profile
-  getCurrentUserProfile(): UserProfile | null {
-    return this.userProfile;
-  }
-
-  // Get auth error message
-  private getAuthErrorMessage(errorCode: string): string {
-    switch (errorCode) {
-      case 'auth/user-not-found':
-        return 'No account found with this email address.';
-      case 'auth/wrong-password':
-        return 'Incorrect password.';
-      case 'auth/email-already-in-use':
-        return 'An account with this email already exists.';
-      case 'auth/weak-password':
-        return 'Password should be at least 6 characters.';
-      case 'auth/invalid-email':
-        return 'Invalid email address.';
-      case 'auth/user-disabled':
-        return 'This account has been disabled.';
-      case 'auth/too-many-requests':
-        return 'Too many failed attempts. Please try again later.';
-      default:
-        return 'An error occurred. Please try again.';
-    }
-  }
-
-  // Check if user is admin
-  isAdmin(): boolean {
-    return this.hasRole(['admin', 'super_admin']);
-  }
-
-  // Check if user is super admin
-  isSuperAdmin(): boolean {
-    return this.hasRole('super_admin');
-  }
-
-  // Check if user exists by email
-  async findUserByEmail(email: string): Promise<UserProfile | null> {
-    try {
-      const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('email', '==', email));
-      const querySnapshot = await getDocs(q);
-
-      if (!querySnapshot.empty) {
-        const userDoc = querySnapshot.docs[0];
-        return {
-          ...userDoc.data(),
-          uid: userDoc.id
-        } as UserProfile;
-      }
-
-      return null;
-    } catch (error) {
-      console.error('Error finding user by email:', error);
-      return null;
-    }
-  }
-
-  // Sign up with role (for staff management)
-  async signUpWithRole(name: string, email: string, password: string, role: string): Promise<UserProfile> {
-    try {
-      // Map role to proper format
-      const roleMapping: { [key: string]: UserRole } = {
-        'Video Editor': 'video_editor',
-        'Script Writer': 'script_writer',
-        'Thumbnail Maker': 'thumbnail_maker',
-        'Uploader': 'uploader',
-        'Campaign Manager': 'admin',
-        'Finance': 'admin',
-        'Admin': 'admin',
-        'Super Admin': 'super_admin'
-      };
-
-      const dbRole = roleMapping[role] || role.toLowerCase().replace(' ', '_');
-
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      const userProfile: UserProfile = {
-        uid: user.uid,
-        email: email,
-        name: name,
-        role: dbRole as UserRole,
-        createdAt: new Date().toISOString(),
-        lastLoginAt: new Date().toISOString(),
-        isActive: true
-      };
-
-      // Save to Firestore
-      await setDoc(doc(db, 'users', user.uid), userProfile);
-
-      // Save to Realtime Database
-      await set(ref(database, 'users/' + user.uid), userProfile);
-
-      return userProfile;
-    } catch (error: any) {
-      console.error('Sign up with role error:', error);
-      throw new Error(this.getAuthErrorMessage(error.code));
-    }
+  // Logout the current user
+  public async logout(): Promise<void> {
+    await signOut(this.auth);
   }
 }
 
-// Create singleton instance
-const authService = new AuthService();
+// Export a single instance of the service
+const authService = AuthService.getInstance();
 export default authService;

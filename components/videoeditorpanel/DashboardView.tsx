@@ -1,210 +1,124 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { ICONS } from '../../constants';
 import {
     collection,
-    getDocs,
     query,
     where,
-    orderBy,
+    onSnapshot,
 } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import authService from '../../services/authService';
+import authService, { UserProfile } from '../../services/authService';
 import { isSameDay, parseISO } from 'date-fns';
+import { motion } from 'framer-motion';
 
-// 👤 Define User Profile Type
-interface UserProfile {
-    name: string;
-    email: string;
-    // Add other fields if needed
-}
+interface VideoTask { id: string; assignedTo: string; status?: string; createdAt?: string; completedAt?: string; }
 
-// 🎬 Define Video Task Type
-interface VideoTask {
-    id: string;
-    assignedTo: string;
-    status?: 'pending' | 'completed' | 'rejected';
-    createdAt?: string; // ISO string
-    completedAt?: string; // ISO string
-    // Add other task fields as needed
-}
-
-// 📊 StatCard Component (Reusable)
-const StatCard = ({
-    title,
-    value,
-    icon,
-    subtitle = '',
-    extra = '',
-}: {
-    title: string;
-    value: string;
-    icon: React.ReactNode;
-    subtitle?: string;
-    extra?: string;
-}) => (
-    <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200/80">
+const StatCard = ({ title, value, icon, subtitle }: { title: string; value: string; icon: React.ReactNode; subtitle?: string; }) => (
+    <motion.div
+        className="bg-white p-5 rounded-xl shadow-sm border border-slate-200/80"
+        variants={{ hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } }}
+        whileHover={{ y: -5, boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.05)" }}
+    >
         <div className="flex justify-between items-start">
             <div>
                 <p className="text-sm text-slate-500 font-medium">{title}</p>
                 <p className="text-3xl font-bold text-slate-800 mt-1">{value}</p>
                 {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
-                {extra && <p className="text-xs text-slate-500 mt-1">{extra}</p>}
             </div>
-            <div className="text-slate-400">{icon}</div>
+            <div className="text-slate-400 text-2xl">{icon}</div>
         </div>
-    </div>
+    </motion.div>
 );
 
-// 🖥️ Main Dashboard Component
 const DashboardView = () => {
-    const [stats, setStats] = useState({
-        totalAssigned: 0,
-        totalCompleted: 0,
-        totalEdited: 0,
-        approvalRate: 0,
-        todayAssigned: 0,
-        todayCompleted: 0,
-        pendingTasks: 0,
-    });
+    const [tasks, setTasks] = useState<VideoTask[]>([]);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // 📅 Helper to check if date is today
-    const isToday = (dateString?: string): boolean => {
-        if (!dateString) return false;
-        try {
-            return isSameDay(parseISO(dateString), new Date());
-        } catch {
-            return false;
-        }
-    };
-
-    // 🔄 Fetch Dashboard Data
-    const fetchDashboardData = async (userEmail: string) => {
-        try {
-            // 🔍 Fetch ALL tasks assigned to user (no limit for totals!)
-            const allTasksQuery = query(
-                collection(db, 'video_edit_tasks'),
-                where('assignedTo', '==', userEmail)
-            );
-            const allTasksSnapshot = await getDocs(allTasksQuery);
-            const allTasks = allTasksSnapshot.docs.map(
-                (doc) => ({ id: doc.id, ...doc.data() }) as VideoTask
-            );
-
-            // ✅ Fetch ONLY completed tasks (no limit for accurate count)
-            const completedQuery = query(
-                collection(db, 'video_edit_tasks'),
-                where('assignedTo', '==', userEmail),
-                where('status', '==', 'completed')
-            );
-            const completedSnapshot = await getDocs(completedQuery);
-            const completedTasks = completedSnapshot.docs.map(
-                (doc) => ({ id: doc.id, ...doc.data() }) as VideoTask
-            );
-
-            // 📊 Calculate Stats
-            const totalAssigned = allTasks.length;
-            const totalCompleted = completedTasks.length;
-            const approvalRate =
-                totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
-
-            const todayAssigned = allTasks.filter((task) =>
-                isToday(task.createdAt)
-            ).length;
-            const todayCompleted = completedTasks.filter((task) =>
-                isToday(task.completedAt)
-            ).length;
-
-            setStats({
-                totalAssigned,
-                totalCompleted,
-                totalEdited: totalAssigned + totalCompleted, // or just totalAssigned if "edited" means same as assigned
-                approvalRate,
-                todayAssigned,
-                todayCompleted,
-                pendingTasks: totalAssigned - totalCompleted,
-            });
-
-        } catch (err) {
-            console.error('Error fetching dashboard data:', err);
-        }
-    };
-
-    // 👤 Listen to Auth State
+    // Effect 1: Manages authentication state. It's clean and has one job.
     useEffect(() => {
-        const unsubscribe = authService.onAuthStateChange((authState) => {
-            if (authState.isAuthenticated && authState.userProfile) {
-                setUserProfile(authState.userProfile);
-                fetchDashboardData(authState.userProfile.email);
-            } else {
-                setUserProfile(null);
-                setStats({
-                    totalAssigned: 0,
-                    totalCompleted: 0,
-                    totalEdited: 0,
-                    approvalRate: 0,
-                    todayAssigned: 0,
-                    todayCompleted: 0,
-                    pendingTasks: 0,
-                });
-            }
+        const authUnsubscribe = authService.onAuthStateChange(state => {
+            setUserProfile(state.isAuthenticated ? state.userProfile : null);
+            // Loading is considered done when auth state is resolved.
+            setIsLoading(state.isLoading);
         });
-
-        return () => unsubscribe();
+        return () => authUnsubscribe();
     }, []);
 
-    // 💡 Optional: Memoize stats if needed later
-    const memoizedStats = useMemo(() => stats, [stats]);
+    // Effect 2: Manages real-time data fetching. Now depends on the stable `userProfile.email`.
+    useEffect(() => {
+        const userEmail = userProfile?.email;
 
-    // ✅ Render Dashboard
+        if (!userEmail) {
+            setTasks([]); // Clear tasks if user logs out.
+            return; // Stop here if there's no email.
+        }
+
+        // Set up the real-time listener for tasks.
+        const tasksQuery = query(collection(db, 'video_edit_tasks'), where('assignedTo', '==', userEmail));
+        
+        const tasksUnsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+            const allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as VideoTask));
+            setTasks(allTasks);
+        }, (error) => {
+            console.error("Error fetching real-time tasks:", error);
+        });
+
+        // This cleanup function runs ONLY when `userEmail` changes (i.e., login/logout).
+        return () => tasksUnsubscribe();
+
+    }, [userProfile?.email]); // ✅ THE FIX: Depend on the primitive and stable email string.
+
+    const isToday = (dateString?: string): boolean => {
+        if (!dateString) return false;
+        try { return isSameDay(parseISO(dateString), new Date()); } catch { return false; }
+    };
+
+    // Calculate stats based on the real-time `tasks` state.
+    const stats = useMemo(() => {
+        const completedTasks = tasks.filter(task => task.status === 'completed');
+        const totalAssigned = tasks.length;
+        const totalCompleted = completedTasks.length;
+        const approvalRate = totalAssigned > 0 ? Math.round((totalCompleted / totalAssigned) * 100) : 0;
+        const todayAssigned = tasks.filter(task => isToday(task.createdAt)).length;
+        const todayCompleted = completedTasks.filter(task => isToday(task.completedAt)).length;
+
+        return {
+            pendingTasks: totalAssigned - totalCompleted,
+            totalCompleted,
+            approvalRate,
+            todayAssigned,
+            todayCompleted,
+        };
+    }, [tasks]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                    <span className="text-4xl">⏳</span>
+                    <h3 className="text-lg font-semibold mt-4">Loading Dashboard...</h3>
+                </div>
+            </div>
+        );
+    }
+
+    const containerVariants = { hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+
     return (
-        <div className="space-y-8">
+        <motion.div className="space-y-6" variants={containerVariants} initial="hidden" animate="visible">
             <div>
-                <h1 className="text-2xl font-bold text-slate-900 mb-1">
-                    Welcome, {userProfile?.name || 'User'}
-                </h1>
-                <p className="text-slate-600">
-                    Here's your comprehensive editing dashboard with task details and performance metrics.
-                </p>
+                <h1 className="text-3xl font-bold text-slate-800">Welcome, {userProfile?.name || 'Editor'}</h1>
+                <p className="text-slate-500 mt-1">Your real-time editing dashboard is ready.</p>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6">
-                <StatCard
-                    title="Total Tasks Assigned"
-                    value={memoizedStats.totalAssigned.toString()}
-                    subtitle="Since joining"
-                    icon={ICONS.clipboard}
-                />
-                <StatCard
-                    title="Tasks Completed"
-                    value={memoizedStats.totalCompleted.toString()}
-                    subtitle={`${memoizedStats.approvalRate}% completion rate`}
-                    icon={ICONS.checkCircle}
-                />
-                <StatCard
-                    title="Videos Edited"
-                    value={memoizedStats.totalEdited.toString()}
-                    subtitle="Since joining"
-                    icon={ICONS.scissors}
-                />
-
-                <StatCard
-                    title="Tasks Assigned Today"
-                    value={memoizedStats.todayAssigned.toString()}
-                    icon={ICONS.clipboard}
-                />
-                <StatCard
-                    title="Tasks Completed Today"
-                    value={memoizedStats.todayCompleted.toString()}
-                    icon={ICONS.checkCircle}
-                />
-                <StatCard
-                    title="Pending Tasks"
-                    value={memoizedStats.pendingTasks.toString()}
-                    icon={ICONS.bell}
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+                <StatCard title="Pending Tasks" value={stats.pendingTasks.toString()} icon={ICONS.bell} />
+                <StatCard title="Tasks Completed" value={stats.totalCompleted.toString()} subtitle={`${stats.approvalRate}% completion rate`} icon={ICONS.checkCircle} />
+                <StatCard title="Assigned Today" value={stats.todayAssigned.toString()} icon={ICONS.clipboard} />
+                <StatCard title="Completed Today" value={stats.todayCompleted.toString()} icon={ICONS.checkCircle} />
             </div>
-        </div>
+        </motion.div>
     );
 };
 

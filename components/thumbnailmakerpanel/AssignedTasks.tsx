@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
 const AssignedTasks = ({ userProfile, onTaskClick }) => {
@@ -7,30 +7,42 @@ const AssignedTasks = ({ userProfile, onTaskClick }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (userProfile?.email) {
-            fetchTasks();
-        }
-    }, [userProfile]);
-
-    const fetchTasks = async () => {
-        setLoading(true);
-        try {
-            const tasksQuery = query(
-                collection(db, 'thumbnail_tasks'),
-                where('assignedTo', '==', userProfile.email)
-            );
-            const tasksSnapshot = await getDocs(tasksQuery);
-            const tasksData = tasksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Sort by assigned date, most recent first
-            tasksData.sort((a, b) => (b.assignedAt?.toMillis() || 0) - (a.assignedAt?.toMillis() || 0));
-            setTasks(tasksData);
-        } catch (error) {
-            console.error("Error fetching assigned tasks:", error);
-            setTasks([]);
-        } finally {
+        if (!userProfile?.email) {
             setLoading(false);
+            return;
         }
-    };
+
+        setLoading(true);
+        // Real-time listener for tasks
+        const tasksQuery = query(
+            collection(db, 'thumbnail_tasks'),
+            where('thumbnailMaker', '==', userProfile.email)
+        );
+
+        const unsubscribe = onSnapshot(tasksQuery, (snapshot) => {
+            const tasksData = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                // Ensure dates are correctly parsed
+                assignedAt: doc.data().assignedAt?.toDate(),
+                createdAt: doc.data().createdAt?.toDate()
+            }));
+            
+            // Sort by assigned date, most recent first
+            tasksData.sort((a, b) => (b.assignedAt?.getTime() || 0) - (a.assignedAt?.getTime() || 0));
+            
+            setTasks(tasksData);
+            setLoading(false);
+        }, (error) => {
+            console.error("Error fetching real-time tasks:", error);
+            setTasks([]);
+            setLoading(false);
+        });
+
+        // Cleanup listener on component unmount
+        return () => unsubscribe();
+
+    }, [userProfile?.email]);
 
     const getStatusChipStyle = (status) => {
         switch (status) {
@@ -81,7 +93,7 @@ const AssignedTasks = ({ userProfile, onTaskClick }) => {
                                             {task.status}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4">{task.assignedAt ? new Date(task.assignedAt.toMillis()).toLocaleDateString() : 'N/A'}</td>
+                                    <td className="px-6 py-4">{task.assignedAt ? new Date(task.assignedAt).toLocaleDateString() : 'N/A'}</td>
                                     <td className="px-6 py-4 text-right">
                                         <button onClick={() => onTaskClick(task)} className="font-medium text-blue-600 hover:underline">View Details</button>
                                     </td>

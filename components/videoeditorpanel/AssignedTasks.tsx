@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ICONS } from '../../constants';
-import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, query, where, onSnapshot, QuerySnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import authService from '../../services/authService';
+
+interface Campaign {
+  id: string;
+  assignedEditor?: string;
+  status: string;
+  name: string;
+  reels?: any[];
+  description?: string;
+}
 
 // === ANIMATED STATUS BADGE ===
 const StatusBadge = ({ status }) => {
@@ -267,9 +276,9 @@ const TaskDetailsPage = ({ campaign, isOpen, onClose }) => {
 
 // === MAIN ASSIGNED TASKS PAGE ===
 const AssignedTasks = () => {
-  const [campaigns, setCampaigns] = useState([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedCampaign, setSelectedCampaign] = useState(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
 
@@ -286,25 +295,27 @@ const AssignedTasks = () => {
 }, []);
 
 useEffect(() => {
-    if (!userProfile) return;
+    if (!userProfile) {
+        setLoading(false);
+        return;
+    }
 
     setLoading(true);
     const campaignsRef = collection(db, 'campaigns');
     const q = query(campaignsRef, where('status', '==', 'Active'));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const allActiveCampaigns = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
-        
-        const assignedCampaigns = allActiveCampaigns.filter(campaign => campaign.assignedEditor === userProfile.uid);
+      const allActiveCampaigns = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Campaign[];
 
-        setCampaigns(assignedCampaigns);
-        setLoading(false);
+      const assignedCampaigns = allActiveCampaigns.filter((campaign: Campaign) => campaign.assignedEditor === userProfile.uid);
+      setCampaigns(assignedCampaigns);
+      setLoading(false);
     }, (error) => {
-        console.error('Error fetching active campaigns:', error);
-        setLoading(false);
+      console.error('Error fetching active campaigns:', error);
+      setLoading(false);
     });
 
     return () => unsubscribe();
@@ -319,17 +330,6 @@ useEffect(() => {
     setIsModalOpen(false);
     setSelectedCampaign(null);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <span className="text-4xl">⏳</span>
-          <h3 className="text-lg font-semibold mt-4">Loading Campaigns...</h3>
-        </div>
-      </div>
-    );
-  }
 
   // Page-level animations
   const containerVariants = {
@@ -364,84 +364,93 @@ useEffect(() => {
         onClose={handleCloseModal}
       />
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-        className="p-6 space-y-8"
-      >
-        {/* Header */}
-        <motion.div variants={cardVariants} className="text-center md:text-left">
-          <motion.h2
-            whileInView={{ scale: 1, y: 0 }}
-            initial={{ scale: 0.95, y: 20 }}
-            viewport={{ once: true }}
-            className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2"
-          >
-            Assigned Campaigns
-          </motion.h2>
-          <motion.p
-            variants={cardVariants}
-            className="text-slate-600 text-lg max-w-2xl mx-auto"
-          >
-            Manage and track all your assigned campaigns with smooth animations and real-time updates.
-          </motion.p>
-        </motion.div>
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <span className="text-4xl">⏳</span>
+            <h3 className="text-lg font-semibold mt-4">Loading Campaigns...</h3>
+          </div>
+        </div>
+      ) : (
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="p-6 space-y-8"
+        >
+          {/* Header */}
+          <motion.div variants={cardVariants} className="text-center md:text-left">
+            <motion.h2
+              whileInView={{ scale: 1, y: 0 }}
+              initial={{ scale: 0.95, y: 20 }}
+              viewport={{ once: true }}
+              className="text-4xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent mb-2"
+            >
+              Assigned Campaigns
+            </motion.h2>
+            <motion.p
+              variants={cardVariants}
+              className="text-slate-600 text-lg max-w-2xl mx-auto"
+            >
+              Manage and track all your assigned campaigns with smooth animations and real-time updates.
+            </motion.p>
+          </motion.div>
 
-        {/* Task Grid */}
-        {campaigns.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {campaigns.map((campaign, index) => (
-              <motion.div
-                key={campaign.id}
-                variants={cardVariants}
-                whileHover={{
-                  y: -10,
-                  boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
-                  transition: { duration: 0.3 }
-                }}
-                className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 hover:shadow-xl transition-all cursor-pointer group"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <motion.h3
-                    whileHover={{ scale: 1.05 }}
-                    className="text-xl font-extrabold text-slate-800 group-hover:text-indigo-600 transition-colors"
-                  >
-                    {campaign.name}
-                  </motion.h3>
-                  <StatusBadge status={campaign.status} />
-                </div>
-
-                <div className="space-y-3 mb-5">
-                  <div>
-                    <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">ID</span>
-                    <p className="text-slate-700 font-medium">{campaign.id}</p>
-                  </div>
-                  <div>
-                    <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Reels</span>
-                    <p className="text-slate-700 font-medium">{campaign.reels?.length || 0}</p>
-                  </div>
-                </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleViewDetails(campaign)}
-                  className="w-full py-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all text-sm font-bold"
+          {/* Task Grid */}
+          {campaigns.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {campaigns.map((campaign) => (
+                <motion.div
+                  key={campaign.id}
+                  variants={cardVariants}
+                  whileHover={{
+                    y: -10,
+                    boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)",
+                    transition: { duration: 0.3 }
+                  }}
+                  className="bg-white rounded-2xl shadow-sm border border-slate-200/80 p-6 hover:shadow-xl transition-all cursor-pointer group"
                 >
-                  View Tasks
-                </motion.button>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12">
-            <span className="text-6xl">📋</span>
-            <h3 className="text-xl font-semibold mt-4 text-slate-600">No campaigns assigned yet</h3>
-            <p className="text-slate-500 mt-2">Check back later for new assigned campaigns.</p>
-          </div>
-        )}
-      </motion.div>
+                  <div className="flex items-center justify-between mb-4">
+                    <motion.h3
+                      whileHover={{ scale: 1.05 }}
+                      className="text-xl font-extrabold text-slate-800 group-hover:text-indigo-600 transition-colors"
+                    >
+                      {campaign.name}
+                    </motion.h3>
+                    <StatusBadge status={campaign.status} />
+                  </div>
+
+                  <div className="space-y-3 mb-5">
+                    <div>
+                      <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">ID</span>
+                      <p className="text-slate-700 font-medium">{campaign.id}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">Reels</span>
+                      <p className="text-slate-700 font-medium">{campaign.reels?.length || 0}</p>
+                    </div>
+                  </div>
+
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleViewDetails(campaign)}
+                    className="w-full py-3 bg-slate-100 text-slate-800 rounded-xl hover:bg-slate-200 hover:text-slate-900 transition-all text-sm font-bold border border-slate-200"
+                  >
+                    View Tasks
+                  </motion.button>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12">
+              <span className="text-6xl">📋</span>
+              <h3 className="text-xl font-semibold mt-4 text-slate-600">No campaigns assigned yet</h3>
+              <p className="text-slate-500 mt-2">Check back later for new assigned campaigns.</p>
+            </div>
+          )}
+        </motion.div>
+      )}
     </>
   );
 };

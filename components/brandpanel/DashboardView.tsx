@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Area, AreaChart } from 'recharts';
 import { ICONS } from '../../constants';
+import { motion } from 'framer-motion';
 
 // Animated Counter Component
 const AnimatedNumber = ({ value, duration = 1000 }) => {
@@ -33,7 +34,7 @@ const Card = ({ title, value, change = null, icon, subtitle = null, delay = 0 })
         <div className="flex justify-between items-start">
             <div>
                 <p className="text-xs sm:text-sm text-slate-500 font-medium">{title}</p>
-                <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mt-1">
+                <p className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-black mt-1">
                     {typeof value === 'number' ? <AnimatedNumber value={value} /> : value}
                 </p>
                 {subtitle && <p className="text-xs text-slate-400 mt-1">{subtitle}</p>}
@@ -49,7 +50,7 @@ Card.defaultProps = {
     subtitle: null,
 };
 
-const DashboardView = ({ campaigns, profile, onNewCampaign, onNavigateToAnalytics, onNavigateToCampaigns }) => {
+const DashboardView = ({ campaigns = [], profile, onNewCampaign, onNavigateToAnalytics, onNavigateToCampaigns }) => {
     // Metrics calculations with edge case handling
     const totalCampaigns = campaigns.length;
     const activeCampaigns = campaigns.filter((c) => c.status === 'Active').length;
@@ -59,25 +60,25 @@ const DashboardView = ({ campaigns, profile, onNewCampaign, onNavigateToAnalytic
     const totalViews = campaigns.reduce((sum, campaign) => sum + (campaign.views || 0), 0);
     const totalReels = campaigns.reduce((sum, campaign) => sum + (campaign.reelsCount || 0), 0);
     const uploadedReels = campaigns.reduce(
-        (sum, campaign) => sum + campaign.reels.filter((r) => r.status === 'Live').length,
+        (sum, campaign) => sum + (campaign.reels?.filter((r) => r.status === 'Live').length || 0),
         0,
     );
     const pendingReels = totalReels - uploadedReels;
 
     const totalLikes = campaigns.reduce(
-        (sum, campaign) => sum + campaign.reels.reduce((rSum, reel) => rSum + (reel.likes || 0), 0),
+        (sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.likes || 0), 0) || 0),
         0,
     );
     const totalComments = campaigns.reduce(
-        (sum, campaign) => sum + campaign.reels.reduce((rSum, reel) => rSum + (reel.comments || 0), 0),
+        (sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.comments || 0), 0) || 0),
         0,
     );
     const totalShares = campaigns.reduce(
-        (sum, campaign) => sum + campaign.reels.reduce((rSum, reel) => rSum + (reel.shares || 0), 0),
+        (sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.shares || 0), 0) || 0),
         0,
     );
     const totalSaves = campaigns.reduce(
-        (sum, campaign) => sum + campaign.reels.reduce((rSum, reel) => rSum + (reel.saves || 0), 0),
+        (sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.saves || 0), 0) || 0),
         0,
     );
 
@@ -137,7 +138,7 @@ const DashboardView = ({ campaigns, profile, onNewCampaign, onNavigateToAnalytic
                     <p className="text-xs sm:text-sm text-slate-500 mt-2">Real-time insights for your marketing success</p>
                     {/* Welcome Message */}
                     {profile && profile.name && (
-                        <p className="text-sm text-green-600 mt-1">
+                        <p className="text-black text-green-600 mt-1">
                             👋 Welcome back, {profile.name}! Ready to create amazing campaigns?
                         </p>
                     )}
@@ -195,28 +196,8 @@ const DashboardView = ({ campaigns, profile, onNewCampaign, onNavigateToAnalytic
                 </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-lg border border-slate-200/80 mb-8">
-                <h3 className="font-bold text-lg mb-4 text-slate-800">⚡ Quick Actions</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    {[
-                        { label: 'New Campaign', icon: ICONS.plus, color: 'from-blue-500 to-blue-600', onClick: onNewCampaign },
-                        { label: 'Upload Reel', icon: ICONS.upload, color: 'from-green-500 to-green-600', onClick: onNavigateToCampaigns },
-                        { label: 'View Analytics', icon: ICONS.chart, color: 'from-purple-500 to-purple-600', onClick: onNavigateToAnalytics },
-                        { label: 'Create Order', icon: '🛒', color: 'from-orange-500 to-orange-600', onClick: () => onNavigateToCampaigns && onNavigateToCampaigns('order') },
-                    ].map((action, idx) => (
-                        <button
-                            key={idx}
-                            onClick={action.onClick}
-                            className={`flex flex-col items-center p-4 rounded-xl bg-gradient-to-r ${action.color} text-white shadow-lg hover:shadow-xl active:scale-95 transition-all transform`}
-                            style={{ animation: `fadeInUp 0.5s ease-out ${500 + idx * 100}ms both` }}
-                        >
-                            <span className="text-2xl mb-2">{action.icon}</span>
-                            <span className="text-xs font-medium">{action.label}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
+ {/* Quick Actions */}
+
 
             {/* Engagement Stats */}
             <div className="bg-white p-5 sm:p-6 rounded-2xl shadow-lg border border-slate-200/80 mb-8">

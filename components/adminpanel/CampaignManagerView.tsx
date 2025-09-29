@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { collection, onSnapshot, updateDoc, doc, getDocs, writeBatch, query, where } from 'firebase/firestore';
+import React, { useState, useEffect, useRef } from 'react';
+import { collection, onSnapshot, updateDoc, doc, getDocs, writeBatch, query, where, getDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { ICONS } from '../../constants';
 import NewCampaignForm from './NewCampaignForm';
@@ -24,13 +24,35 @@ const CampaignManagerView = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [processingId, setProcessingId] = useState(null);
     const [filter, setFilter] = useState('All');
+    const [brandNames, setBrandNames] = useState({});
+    const fetchedBrandsRef = useRef(new Set());
+
+    useEffect(() => {
+        const fetchBrandNames = async () => {
+            const uniqueBrandIds = [...new Set(campaigns.map(c => c.brandId).filter((id): id is string => typeof id === 'string'))];
+            const newNames: Record<string, string> = {};
+            for (const id of uniqueBrandIds) {
+                if (!fetchedBrandsRef.current.has(id)) {
+                    fetchedBrandsRef.current.add(id);
+                    const userDoc = await getDoc(doc(db, 'users', id as string));
+                    if (userDoc.exists()) {
+                        newNames[id] = userDoc.data().brandName || 'Unknown Brand';
+                    }
+                }
+            }
+            if (Object.keys(newNames).length > 0) {
+                setBrandNames(prev => ({ ...prev, ...newNames }));
+            }
+        };
+        if (campaigns.length > 0) {
+            fetchBrandNames();
+        }
+    }, [campaigns]);
 
     useEffect(() => {
         setLoading(true);
-        let q = collection(db, 'campaigns');
-        if (filter !== 'All') {
-            q = query(q, where('status', '==', filter));
-        }
+        const campaignsCollection = collection(db, 'campaigns');
+        const q = filter !== 'All' ? query(campaignsCollection, where('status', '==', filter)) : campaignsCollection;
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -50,11 +72,11 @@ const CampaignManagerView = () => {
     );
 
     if (selectedCampaign) {
-        return <CampaignDetailView campaign={selectedCampaign} onBack={() => setSelectedCampaign(null)} />
+        return <CampaignDetailView campaignId={selectedCampaign.id} onClose={() => setSelectedCampaign(null)} />
     }
 
     if (showNewCampaignForm) {
-        return <NewCampaignForm onBack={() => setShowNewCampaignForm(false)} />
+        return <NewCampaignForm onCreateCampaign={() => {}} onCancel={() => setShowNewCampaignForm(false)} />
     }
 
     return (
@@ -99,10 +121,10 @@ const CampaignManagerView = () => {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-slate-200">
-                            {filteredCampaigns.map(campaign => (
-                                <tr key={campaign.id} className="hover:bg-slate-50">
+                            {filteredCampaigns.map((campaign, index) => (
+                                <tr key={`${campaign.id}-${index}`} className="hover:bg-slate-50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{campaign.name}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{campaign.brandName || 'N/A'}</td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brandNames[campaign.brandId] || campaign.brandName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <StatusBadgeComponent status={campaign.status} />
                                     </td>

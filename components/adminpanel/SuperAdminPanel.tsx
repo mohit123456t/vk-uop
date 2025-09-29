@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion'; // 👈 Added for animations
+import { motion } from 'framer-motion';
 import StaffManagementView from './StaffManagementView';
 import ReelsUploadedPage from './ReelsUploadedPage';
 import SuperAdminDashboard from './SuperAdminDashboard';
@@ -14,7 +14,7 @@ import authService from '../../services/authService';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
-// 🧩 NavItem Component — White Theme, Elegant Hover & Active States
+// 🧩 NavItem Component
 const NavItem = ({ icon, label, active, onClick, index }) => (
     <motion.button
         onClick={onClick}
@@ -34,7 +34,7 @@ const NavItem = ({ icon, label, active, onClick, index }) => (
     </motion.button>
 );
 
-// 🖥️ Main Super Admin Panel — WHITE GOD-MODE ACTIVATED
+// 🖥️ Main Super Admin Panel
 const SuperAdminPanel = () => {
     const [activeView, setActiveView] = useState('dashboard');
     const [isLoading, setIsLoading] = useState(true);
@@ -42,101 +42,62 @@ const SuperAdminPanel = () => {
     const [financeData, setFinanceData] = useState(null);
     const [campaigns, setCampaigns] = useState([]);
     const [users, setUsers] = useState([]);
-    const [brands, setBrands] = useState([]);
     const navigate = useNavigate();
 
-    // Real-time listeners for campaigns, users, brands
     useEffect(() => {
-        const unsubscribeCampaigns = onSnapshot(collection(db, 'campaigns'), (snapshot) => {
-            const campaignsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-            setCampaigns(campaignsData);
+        const unsubCampaigns = onSnapshot(collection(db, 'campaigns'), (snapshot) => {
+            setCampaigns(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-
-        const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-            const usersData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-            setUsers(usersData);
+        const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
+            setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         });
-
-        const unsubscribeBrands = onSnapshot(collection(db, 'brands'), (snapshot) => {
-            const brandsData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-            setBrands(brandsData);
-        });
-
-        return () => {
-            unsubscribeCampaigns();
-            unsubscribeUsers();
-            unsubscribeBrands();
-        };
+        return () => { unsubCampaigns(); unsubUsers(); };
     }, []);
 
-    // Compute dashboardData and financeData from real-time data
     useEffect(() => {
-        if (campaigns.length >= 0 || users.length >= 0 || brands.length >= 0) {
-            // Compute dashboard data
-            const totalBrands = brands.length;
-            const activeCampaigns = campaigns.filter((c: any) => c.status === 'Active');
-            const liveCampaigns = campaigns.filter((c: any) => c.status === 'Live').length;
-            const pendingCampaigns = campaigns.filter((c: any) => c.status === 'Pending Approval').length;
-            const totalActiveCampaigns = activeCampaigns.length;
-            const totalCampaignEarnings = campaigns.reduce((sum: number, c: any) => sum + (c.budget || 0), 0);
+        if (!campaigns || !users) return;
 
-            // Brands with live campaigns
-            const brandsWithLiveCampaigns = new Set(activeCampaigns.map((c: any) => c.brandId)).size;
-            const brandsWithoutCampaigns = totalBrands - brandsWithLiveCampaigns;
+        // --- REVENUE CALCULATION ---
+        const totalCampaignEarnings = campaigns.reduce((sum, c) => sum + Number(c.budget || 0), 0);
 
-            // Staff counts from users (assuming users have role field)
-            const totalStaff = users.length;
-            const totalEditors = users.filter((u: any) => u.role === 'videoeditor').length;
-            const totalScriptWriters = users.filter((u: any) => u.role === 'scriptwriter').length;
-            const totalUploaders = users.filter((u: any) => u.role === 'uploader').length;
-            const totalThumbnailMakers = users.filter((u: any) => u.role === 'thumbnailmaker').length;
+        // --- EXPENSE CALCULATION (STAFF SALARIES) ---
+        const staffRoles = ['video_editor', 'script_writer', 'thumbnail_maker', 'uploader'];
+        const totalExpenses = users
+            .filter(u => staffRoles.includes(u.role))
+            .reduce((sum, u) => sum + Number(u.salary || 0), 0);
 
-            // Campaign earnings data (simplified)
-            const campaignEarnings = campaigns.slice(0, 5).map((c: any) => ({
-                name: c.name || 'Unnamed',
-                earnings: c.budget || 0
-            }));
+        // --- PROFIT CALCULATION ---
+        const netProfit = totalCampaignEarnings - totalExpenses;
 
-            const computedDashboardData = {
-                totalBrands,
-                brandsWithLiveCampaigns,
-                brandsWithoutCampaigns,
-                totalActiveCampaigns,
-                liveCampaigns,
-                pendingCampaigns,
-                totalCampaignEarnings,
-                totalStaff,
-                totalEditors,
-                totalScriptWriters,
-                totalUploaders,
-                totalThumbnailMakers,
-                campaignEarnings
-            };
+        // --- DASHBOARD DATA ---
+        const brands = users.filter(u => u.role === 'brand');
+        const activeCampaigns = campaigns.filter(c => c.status === 'Active');
+        const brandsWithLiveCampaigns = new Set(activeCampaigns.map(c => c.brandId)).size;
 
-            // Compute finance data
-            const totalEarnings = totalCampaignEarnings;
-            const totalSpent = totalEarnings * 0.3; // Assume 30% spent
-            const pendingPayments = pendingCampaigns * 1000; // Placeholder
-            const completedPayments = totalEarnings - pendingPayments;
-            const monthlyRevenue = totalEarnings / 12;
-            const yearlyRevenue = totalEarnings;
+        const computedDashboardData = {
+            totalBrands: brands.length,
+            brandsWithLiveCampaigns,
+            brandsWithoutCampaigns: brands.length - brandsWithLiveCampaigns,
+            totalActiveCampaigns: activeCampaigns.length,
+            liveCampaigns: campaigns.filter(c => c.status === 'Live').length,
+            pendingCampaigns: campaigns.filter(c => c.status === 'Pending Approval').length,
+            totalCampaignEarnings,
+            campaignEarnings: campaigns.slice(0, 5).map(c => ({ name: c.name || 'Unnamed', earnings: Number(c.budget || 0) }))
+        };
 
-            const computedFinanceData = {
-                totalEarnings,
-                totalSpent,
-                pendingPayments,
-                completedPayments,
-                monthlyRevenue,
-                yearlyRevenue
-            };
+        // --- FINANCE DATA ---
+        const computedFinanceData = {
+            totalRevenue: totalCampaignEarnings,
+            totalExpenses,
+            netProfit,
+            // You can add more detailed finance data here later
+        };
 
-            setDashboardData(computedDashboardData);
-            setFinanceData(computedFinanceData);
-            setIsLoading(false);
-        } else {
-            setIsLoading(false);
-        }
-    }, [campaigns, users, brands]);
+        setDashboardData(computedDashboardData);
+        setFinanceData(computedFinanceData);
+        setIsLoading(false);
+
+    }, [campaigns, users]);
 
     const handleLogout = async () => {
         try {
@@ -150,58 +111,38 @@ const SuperAdminPanel = () => {
 
     const renderView = () => {
         if (isLoading) {
-            return (
-                <div className="flex flex-col items-center justify-center h-96 space-y-6">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600"></div>
-                    <p className="text-lg text-slate-600 font-medium">Loading Super Admin Dashboard...</p>
-                </div>
-            );
+            return <div className="flex justify-center items-center h-full"><p>Loading...</p></div>;
         }
-
         switch (activeView) {
-            case 'dashboard':
-                return <SuperAdminDashboard data={dashboardData} />;
-            case 'staff_management':
-                return <StaffManagementView />;
-            case 'uploader_manager':
-                return <UploaderManagerView />;
-            case 'script_writer_manager':
-                return <ScriptWriterManagerView />;
-            case 'thumbnail_maker_manager':
-                return <ThumbnailMakerManagerView />;
-            case 'video_editor_manager':
-                return <VideoEditorManagerView />;
-            case 'reels_uploaded':
-                return <ReelsUploadedPage />;
-            case 'finance':
-                return <SuperAdminFinance data={financeData} />;
-            default:
-                return <SuperAdminDashboard data={dashboardData} />;
+            case 'dashboard': return <SuperAdminDashboard data={dashboardData} />;
+            case 'staff_management': return <StaffManagementView />;
+            case 'uploader_manager': return <UploaderManagerView />;
+            case 'script_writer_manager': return <ScriptWriterManagerView />;
+            case 'thumbnail_maker_manager': return <ThumbnailMakerManagerView />;
+            case 'video_editor_manager': return <VideoEditorManagerView />;
+            case 'reels_uploaded': return <ReelsUploadedPage />;
+            case 'finance': return <SuperAdminFinance data={financeData} />;
+            default: return <SuperAdminDashboard data={dashboardData} />;
         }
     };
 
-    // 🧭 Navigation Items
     const superAdminNavItems = [
         { id: 'dashboard', label: 'Dashboard', icon: ICONS.layout },
+        { id: 'finance', label: 'Finance', icon: ICONS.currencyRupee },
         { id: 'staff_management', label: 'Staff Management', icon: ICONS.usersGroup },
         { id: 'uploader_manager', label: 'Uploader Manager', icon: ICONS.upload },
         { id: 'script_writer_manager', label: 'Script Writer Manager', icon: ICONS.pencilSquare },
         { id: 'thumbnail_maker_manager', label: 'Thumbnail Maker Manager', icon: ICONS.photo },
         { id: 'video_editor_manager', label: 'Video Editor Manager', icon: ICONS.video },
         { id: 'reels_uploaded', label: 'Reels Uploaded', icon: ICONS.upload },
-        { id: 'finance', label: 'Finance', icon: ICONS.currencyRupee },
     ];
 
     return (
         <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
-            {/* 👈 WHITE GOD-MODE SIDEBAR */}
             <aside className="fixed left-0 top-0 h-full w-64 bg-white text-slate-800 flex flex-col z-50 shadow-xl border-r border-slate-200">
-                {/* 🔷 Logo Placeholder (Optional) */}
                 <div className="h-16 flex items-center px-6 border-b border-slate-100 flex-shrink-0">
                     <h2 className="font-bold text-lg text-slate-800">Super Admin</h2>
                 </div>
-
-                {/* 🧭 Primary Navigation */}
                 <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                     {superAdminNavItems.map((item, index) => (
                         <NavItem
@@ -214,8 +155,6 @@ const SuperAdminPanel = () => {
                         />
                     ))}
                 </nav>
-
-                {/* 🚪 Logout Button — Classy Red Accent */}
                 <div className="px-4 py-4 border-t border-slate-100 flex-shrink-0">
                     <motion.button
                         onClick={handleLogout}
@@ -228,8 +167,6 @@ const SuperAdminPanel = () => {
                     </motion.button>
                 </div>
             </aside>
-
-            {/* ➡️ Main Content Area — Adjusted for fixed sidebar */}
             <main className="flex-1 ml-64 overflow-y-auto p-8 min-h-screen bg-slate-50">
                 {renderView()}
             </main>

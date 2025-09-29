@@ -263,7 +263,7 @@ const BrandPanel = () => {
     const renderView = () => {
         // View rendering logic remains largely the same
         if (selectedCampaign && activeView === 'campaign_detail') {
-            return <CampaignDetailView campaign={selectedCampaign} onBack={handleBackToCampaigns} onUpdateCampaign={handleUpdateCampaign} onCreateOrder={() => setShowOrderForm(true)} />;
+            return <CampaignDetailView campaignId={selectedCampaign.id} onClose={handleBackToCampaigns} onCreateOrder={() => setShowOrderForm(true)} />;
         }
         switch (activeView) {
             case 'campaigns':
