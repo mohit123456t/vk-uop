@@ -3,6 +3,7 @@ import { collection, query, where, getDocs, onSnapshot } from 'firebase/firestor
 import { db } from '../../services/firebase';
 import authService, { UserProfile } from '../../services/authService';
 import { ICONS } from '../../constants';
+import { motion } from 'framer-motion';
 
 interface StaffStats {
     assigned: number;
@@ -61,32 +62,45 @@ const VideoEditorManagerView = () => {
     if (loading) {
         return (
             <div className="flex flex-col justify-center items-center h-64 w-full">
-                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-slate-900"></div>
-                <p className="text-center mt-4 text-lg font-semibold text-slate-700">Loading Video Editors...</p>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-800"></div>
+                <p className="text-center mt-4 font-semibold text-slate-700">Loading Video Editors...</p>
             </div>
         );
     }
 
     return (
-        <div className="p-6 bg-slate-50 min-h-screen">
+        // THEME UPDATE: बैकग्राउंड हटाया गया और एनिमेशन रैपर जोड़ा गया
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">Video Editor Management</h1>
-                <p className="text-slate-600">Manage and monitor video editor performance and assignments</p>
+                <h1 className="text-3xl font-bold text-slate-800 tracking-tighter">Video Editor Management</h1>
+                <p className="text-slate-500 mt-1">Manage and monitor video editor performance and assignments</p>
             </div>
 
             {videoEditors.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
-                    <div className="text-slate-400 mb-4">{ICONS.users}</div>
+                // THEME UPDATE: "No editors found" कार्ड को ग्लास पैनल बनाया गया है
+                <motion.div 
+                    className="bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 p-12 text-center"
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                >
+                    <div className="text-slate-400 mb-4 text-4xl mx-auto w-fit">{ICONS.users}</div>
                     <h3 className="text-lg font-medium text-slate-900 mb-2">No Video Editors Found</h3>
                     <p className="text-slate-500">Add video editors to start managing their activities.</p>
-                </div>
+                </motion.div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {videoEditors.map(editor => (
-                        <div key={editor.uid} className="bg-white rounded-lg shadow-sm border border-slate-200 p-6 hover:shadow-md transition-shadow">
+                    {videoEditors.map((editor, index) => (
+                        // THEME UPDATE: एडिटर कार्ड को ग्लास पैनल बनाया गया है
+                        <motion.div 
+                            key={editor.uid} 
+                            className="bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 p-6 hover:shadow-xl transition-shadow"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                        >
                             <div className="flex items-center justify-between mb-4">
                                <div className="flex items-center">
-                                     <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                                     <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3 border-2 border-white">
                                         <span className="text-red-600 font-semibold text-sm">{editor.name?.charAt(0)?.toUpperCase() || 'V'}</span>
                                     </div>
                                     <div>
@@ -96,29 +110,30 @@ const VideoEditorManagerView = () => {
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-3 gap-4 mb-4 text-center">
+                            <div className="grid grid-cols-3 gap-4 mb-6 text-center bg-white/30 p-3 rounded-lg">
                                 <div>
                                     <div className="text-2xl font-bold text-slate-800">{editor.stats.assigned}</div>
-                                    <div className="text-xs text-slate-500">Assigned</div>
+                                    <div className="text-xs text-slate-500 uppercase font-semibold">Assigned</div>
                                 </div>
                                 <div>
                                     <div className="text-2xl font-bold text-yellow-600">{editor.stats.pending}</div>
-                                    <div className="text-xs text-slate-500">Pending</div>
+                                    <div className="text-xs text-slate-500 uppercase font-semibold">Pending</div>
                                 </div>
                                 <div>
                                     <div className="text-2xl font-bold text-green-600">{editor.stats.completed}</div>
-                                    <div className="text-xs text-slate-500">Completed</div>
+                                    <div className="text-xs text-slate-500 uppercase font-semibold">Completed</div>
                                 </div>
                             </div>
-                             <div className="mt-4 flex space-x-2">
-                                <button className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors">View Details</button>
-                                <button className="flex-1 bg-green-500 text-white px-3 py-2 rounded-md text-sm font-medium hover:bg-green-600 transition-colors">Assign Task</button>
+                             {/* THEME UPDATE: बटन्स को थीम के हिसाब से स्टाइल किया गया है */}
+                             <div className="flex space-x-3">
+                                <button className="flex-1 px-4 py-2.5 bg-slate-500/10 text-slate-700 rounded-lg text-sm font-semibold hover:bg-slate-500/20 transition-colors">View Details</button>
+                                <button className="flex-1 bg-indigo-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20">Assign Task</button>
                             </div>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 };
 

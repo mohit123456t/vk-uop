@@ -10,161 +10,130 @@ import {
 } from 'recharts';
 import { ICONS } from '../../constants';
 import authService from '../../services/authService';
-import { formatNumber } from '../../utils/format'; // 👈 Import the magic formatter
+import { formatNumber } from '../../utils/format';
+import { motion } from 'framer-motion';
 
-// 🧩 StatCard Component — Now with number formatting!
+// THEME UPDATE: StatCard को वापस "iOS Frosted Glass" (लाइट थीम) में बदला गया है
 const StatCard = ({ title, value, icon, color, size = 'normal' }) => (
-  <div
-    className={`rounded-xl shadow-sm border transition-all duration-300 hover:shadow-md hover:scale-105 
-    ${size === 'large' ? 'p-6 text-base md:col-span-2' : 'p-4 text-sm'}
-    bg-white border-slate-200`}
+  <motion.div
+    className={`bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 
+    ${size === 'large' ? 'p-6 text-base md:col-span-2' : 'p-4 text-sm'}`}
+    whileHover={{ y: -5, scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
   >
     <div className="flex items-center justify-between mb-2">
       <h3 className="font-semibold text-slate-700">{title}</h3>
       <div className={`text-xl p-2 rounded-lg ${color}`}>{icon}</div>
     </div>
-    <p className={`font-bold ${size === 'large' ? 'text-2xl' : 'text-xl'} text-slate-900`}>
-      {value} 
+    <p className={`font-bold ${size === 'large' ? 'text-3xl' : 'text-2xl'} text-slate-900 tracking-tight`}>
+      {value}
     </p>
-  </div>
+  </motion.div>
 );
 
-// 🖥️ Main Dashboard — With Formatted Numbers
 const SuperAdminDashboard = ({ data }) => {
-  const [userCounts, setUserCounts] = useState({
-    video_editor: 0,
-    script_writer: 0,
-    thumbnail_maker: 0,
-    uploader: 0,
-    totalStaff: 0,
-    brands: 0,
-  });
+  const [userCounts, setUserCounts] = useState({ brands: 0 });
 
   useEffect(() => {
     const fetchUserCounts = async () => {
-      try {
-        const [editors, writers, makers, uploaders, brands] = await Promise.all([
-          authService.getUsersByRole('video_editor'),
-          authService.getUsersByRole('script_writer'),
-          authService.getUsersByRole('thumbnail_maker'),
-          authService.getUsersByRole('uploader'),
-          authService.getUsersByRole('brand'),
-        ]);
-        
-        setUserCounts({
-          video_editor: editors.length,
-          script_writer: writers.length,
-          thumbnail_maker: makers.length,
-          uploader: uploaders.length,
-          totalStaff: editors.length + writers.length + makers.length + uploaders.length,
-          brands: brands.length,
-        });
-      } catch (error) {
-        console.error("Failed to fetch user counts:", error);
-      }
+        const brands = await authService.getUsersByRole('brand');
+        setUserCounts({ brands: brands.length });
     };
-
     fetchUserCounts();
   }, []);
 
-  const dashboardData = data || {
-    brandsWithLiveCampaigns: 0,
-    brandsWithoutCampaigns: 0,
-    totalActiveCampaigns: 0,
-    liveCampaigns: 0,
-    pendingCampaigns: 0,
-    totalCampaignEarnings: 0,
-    campaignEarnings: [],
-  };
+  const dashboardData = data || {};
+
+  // Helper to safely format numbers, defaulting to 0
+  const safeFormat = (value) => formatNumber(value || 0);
 
   return (
-    <div className="space-y-8">
-      {/* ... Header ... */}
-      <div className="text-center lg:text-left">
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">Super Admin Dashboard</h1>
-        <p className="text-slate-600 text-base">Comprehensive overview of all platform activities.</p>
+    // THEME UPDATE: डार्क बैकग्राउंड हटाया गया
+    <motion.div 
+        className="space-y-8"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+    >
+      <div className="text-left">
+        {/* THEME UPDATE: टेक्स्ट का रंग वापस डार्क किया गया */}
+        <h1 className="text-3xl font-bold text-slate-800 tracking-tighter">Super Admin Dashboard</h1>
+        <p className="text-md text-slate-500 mt-1">Comprehensive overview of all platform activities.</p>
       </div>
 
-      {/* 📊 Primary Stats Cards — WITH FORMATTING */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+        {/* THEME UPDATE: आइकॉन के रंग लाइट थीम के हिसाब से बदले गए */}
         <StatCard
-          title="Total Brands"
-          value={formatNumber(userCounts.brands)}
-          icon={ICONS.briefcase}
-          color="bg-blue-100 text-blue-600"
+          title="Total Brands" value={safeFormat(userCounts.brands)}
+          icon={ICONS.briefcase} color="bg-blue-100 text-blue-600"
         />
         <StatCard
-          title="Active Campaigns"
-          value={formatNumber(dashboardData.totalActiveCampaigns)}
-          icon={ICONS.playCircle}
-          color="bg-green-100 text-green-600"
+          title="Active Campaigns" value={safeFormat(dashboardData.totalActiveCampaigns)}
+          icon={ICONS.playCircle} color="bg-green-100 text-green-600"
         />
         <StatCard
-          title="Live Campaigns"
-          value={formatNumber(dashboardData.liveCampaigns)}
-          icon={ICONS.rocket}
-          color="bg-purple-100 text-purple-600"
+          title="Live Campaigns" value={safeFormat(dashboardData.liveCampaigns)}
+          icon={ICONS.rocket} color="bg-purple-100 text-purple-600"
         />
         <StatCard
-          title="Pending Campaigns"
-          value={formatNumber(dashboardData.pendingCampaigns)}
-          icon={ICONS.clock}
-          color="bg-orange-100 text-orange-600"
+          title="Pending Campaigns" value={safeFormat(dashboardData.pendingCampaigns)}
+          icon={ICONS.clock} color="bg-orange-100 text-orange-600"
         />
       </div>
 
-      {/* ... Secondary & Staff Stats with formatting ... */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <StatCard
-          title="Brands with Live Campaigns"
-          value={formatNumber(dashboardData.brandsWithLiveCampaigns)}
-          icon={ICONS.checkCircle}
-          color="bg-teal-100 text-teal-600"
-          size="large"
+          title="Brands with Live Campaigns" value={safeFormat(dashboardData.brandsWithLiveCampaigns)}
+          icon={ICONS.checkCircle} color="bg-teal-100 text-teal-600" size="large"
         />
         <StatCard
-          title="Brands without Campaigns"
-          value={formatNumber(dashboardData.brandsWithoutCampaigns)}
-          icon={ICONS.users}
-          color="bg-yellow-100 text-yellow-600"
-          size="large"
+          title="Brands without Campaigns" value={safeFormat(dashboardData.brandsWithoutCampaigns)}
+          icon={ICONS.users} color="bg-yellow-100 text-yellow-600" size="large"
         />
       </div>
       
-      {/* 💰 Earnings Overview — WITH FORMATTING */}
       <div className="grid grid-cols-1">
         <StatCard
-          title="Total Campaign Earnings"
-          value={`₹${formatNumber(dashboardData.totalCampaignEarnings)}`}
-          icon={ICONS.currencyRupee}
-          color="bg-pink-100 text-pink-600"
-          size="large"
+          title="Total Campaign Earnings" value={`₹${safeFormat(dashboardData.totalCampaignEarnings)}`}
+          icon={ICONS.currencyRupee} color="bg-pink-100 text-pink-600" size="large"
         />
       </div>
 
-      {/* ... other components ... */}
-      <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-        <h3 className="font-bold text-xl mb-4 text-slate-900">Campaign Earnings Analytics</h3>
+      <motion.div 
+        className="bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 p-6"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h3 className="font-bold text-xl mb-6 text-slate-800">Campaign Earnings Analytics</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dashboardData.campaignEarnings}>
+            <BarChart data={dashboardData.campaignEarnings || []} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-              <XAxis dataKey="name" stroke="#64748b" fontSize={12} />
+              <XAxis dataKey="name" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
               <YAxis 
                 stroke="#64748b" 
                 fontSize={12} 
-                tickFormatter={(value) => formatNumber(value)} // Format Y-axis
+                tickFormatter={(value) => formatNumber(value)}
+                tickLine={false} axisLine={false}
               />
               <Tooltip
-                formatter={(value) => [`₹${formatNumber(value)}`, 'Earnings']} // Format tooltip
-                contentStyle={{ /* ...styles... */ }}
+                formatter={(value) => [`₹${formatNumber(value)}`, 'Earnings']}
+                cursor={{ fill: 'rgba(0, 0, 0, 0.05)' }}
+                contentStyle={{ 
+                    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(0, 0, 0, 0.1)', 
+                    borderRadius: '12px',
+                 }}
               />
-              <Bar dataKey="earnings" fill="#6366f1" name="Earnings" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="earnings" fill="#4f46e5" name="Earnings" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 

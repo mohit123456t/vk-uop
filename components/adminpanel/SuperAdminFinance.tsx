@@ -1,26 +1,31 @@
 import React from 'react';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { formatNumber } from '../../utils/format'; // Import the magic formatter
+import { formatNumber } from '../../utils/format';
 import { ICONS } from '../../constants';
+import { motion } from 'framer-motion';
 
-// 🧩 StatCard Component for Finance
 const FinanceStatCard = ({ title, value, icon, color }) => (
-    <div className="bg-white rounded-2xl shadow-lg p-6 transform hover:scale-105 transition-transform duration-300">
+    <motion.div 
+        className="bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 p-6"
+        whileHover={{ y: -5, scale: 1.02 }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+    >
         <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-700">{title}</h2>
             <div className={`text-2xl p-2 rounded-lg ${color}`}>{icon}</div>
         </div>
-        <p className="text-3xl font-bold text-slate-900 mt-2">₹{value}</p>
-    </div>
+        <p className="text-3xl font-bold text-slate-900 mt-2 tracking-tight">₹{value}</p>
+    </motion.div>
 );
 
-// 🖥️ Main Finance Dashboard
 const SuperAdminFinance = ({ data }) => {
-    const financeData = data || {
-        totalRevenue: 0,
-        totalExpenses: 0,
-        netProfit: 0,
-    };
+    const financeData = data || {};
+
+    // Helper to safely format numbers, defaulting to 0
+    const safeFormat = (value) => formatNumber(value || 0);
+
+    const netProfit = financeData.netProfit || 0;
 
     // Dummy data for the chart, replace with real data later
     const monthlyData = [
@@ -29,56 +34,69 @@ const SuperAdminFinance = ({ data }) => {
         { month: 'Mar', revenue: 450000, expenses: 250000 },
         { month: 'Apr', revenue: 420000, expenses: 280000 },
         { month: 'May', revenue: 580000, expenses: 350000 },
-        { month: 'Jun', revenue: financeData.totalRevenue, expenses: financeData.totalExpenses }, // Current month
+        { month: 'Jun', revenue: financeData.totalRevenue || 0, expenses: financeData.totalExpenses || 0 }, // Current month
     ];
 
     return (
-        <div className="space-y-8">
+        <motion.div 
+            className="space-y-8"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+        >
             <div>
-                <h1 className="text-3xl font-bold text-slate-900 mb-2">Financial Overview</h1>
-                <p className="text-slate-600">Real-time tracking of revenue, expenses, and profit.</p>
+                <h1 className="text-3xl font-bold text-slate-800 tracking-tighter">Financial Overview</h1>
+                <p className="text-slate-500 mt-1">Real-time tracking of revenue, expenses, and profit.</p>
             </div>
 
-            {/* 📊 Core Finance Stats */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <FinanceStatCard 
                     title="Total Revenue"
-                    value={formatNumber(financeData.totalRevenue)} 
+                    value={safeFormat(financeData.totalRevenue)} 
                     icon={ICONS.currencyRupee}
                     color="bg-green-100 text-green-600"
                 />
                 <FinanceStatCard 
                     title="Total Expenses"
-                    value={formatNumber(financeData.totalExpenses)} 
-                    icon={ICONS.chartBar} // Changed icon
+                    value={safeFormat(financeData.totalExpenses)} 
+                    icon={ICONS.chartBar}
                     color="bg-red-100 text-red-600"
                 />
                 <FinanceStatCard 
                     title="Net Profit"
-                    value={formatNumber(Number(financeData.netProfit))} 
-                    icon={ICONS.trendingUp} // Changed icon
-                    color={`bg-blue-100 ${financeData.netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}
+                    value={safeFormat(netProfit)} 
+                    icon={ICONS.trendingUp}
+                    color={`bg-blue-100 ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}
                 />
             </div>
 
-            {/* 📈 Monthly Performance Chart */}
-            <div className="bg-white rounded-2xl shadow-lg p-6">
-                <h2 className="text-xl font-bold mb-4 text-slate-900">Monthly Performance</h2>
+            <motion.div 
+                className="bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 p-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+            >
+                <h2 className="text-xl font-bold mb-6 text-slate-800">Monthly Performance</h2>
                 <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={monthlyData}>
+                    <LineChart data={monthlyData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="month" stroke="#64748b" />
-                        <YAxis stroke="#64748b" tickFormatter={(value) => `₹${formatNumber(value)}`} />
-                        <Tooltip formatter={(value) => `₹${formatNumber(value)}`} />
-                        <Line type="monotone" dataKey="revenue" stroke="#34d399" strokeWidth={2} name="Revenue" />
-                        <Line type="monotone" dataKey="expenses" stroke="#f87171" strokeWidth={2} name="Expenses" />
+                        <XAxis dataKey="month" stroke="#64748b" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis stroke="#64748b" fontSize={12} tickFormatter={(value) => `₹${formatNumber(value)}`} tickLine={false} axisLine={false}/>
+                        <Tooltip 
+                            formatter={(value) => `₹${formatNumber(value)}`}
+                            cursor={{ stroke: '#94a3b8', strokeWidth: 1, strokeDasharray: '3 3' }}
+                            contentStyle={{ 
+                                backgroundColor: 'rgba(255, 255, 255, 0.7)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(0, 0, 0, 0.1)', 
+                                borderRadius: '12px',
+                             }}
+                        />
+                        <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} name="Revenue" dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                        <Line type="monotone" dataKey="expenses" stroke="#f43f5e" strokeWidth={2} name="Expenses" dot={{ r: 4 }} activeDot={{ r: 6 }} />
                     </LineChart>
                 </ResponsiveContainer>
-            </div>
-            
-            {/* You can add back the pending transactions tables here if needed */}
-
-        </div>
+            </motion.div>
+        </motion.div>
     );
 };
 
