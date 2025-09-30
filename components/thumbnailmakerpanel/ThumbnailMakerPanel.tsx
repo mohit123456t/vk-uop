@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Logo from './Logo';
+import Logo from '../Logo';
 import { ICONS } from '@/constants.tsx';
-import authService from '../services/authService';
-import DashboardView from './thumbnailmakerpanel/DashboardView';
-import AssignedTasks from './thumbnailmakerpanel/AssignedTasks';
-import TaskDetailView from './thumbnailmakerpanel/TaskDetailView';
-import CommunicationView from './thumbnailmakerpanel/CommunicationView';
-import EarningsView from './thumbnailmakerpanel/EarningsView';
-import ProfileView from './thumbnailmakerpanel/ProfileView';
+import authService from '../../services/authService';
+import DashboardView from './DashboardView';
+import AssignedTasks from './AssignedTasks';
+import TaskDetailView from './TaskDetailView';
+import CommunicationView from './CommunicationView';
+import EarningsView from './EarningsView';
+import ProfileView from './ProfileView';
 
 const NavItem = ({ icon, label, active, onClick, index, ...props }) => (
     <button

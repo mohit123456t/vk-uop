@@ -1,17 +1,18 @@
-import ProfileView from './adminpanel/ProfileView';
-import React, { useState, useEffect } from 'react';
+import ProfileView from './ProfileView';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Logo from './Logo';
-import { ICONS } from '../constants';
+import Logo from '../Logo';
+import { ICONS } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
-import authService from '../services/authService';
+import authService from '../../services/authService';
 
-import DashboardView from './adminpanel/DashboardView';
-import CampaignManagerView from './adminpanel/CampaignManagerView';
-import CampaignApprovalView from './adminpanel/CampaignApprovalView';
-import UserManagementView from './adminpanel/UserManagementView';
-import FinanceView from './adminpanel/FinanceView';
-import CommunicationView from './adminpanel/CommunicationView';
+import DashboardView from './DashboardView';
+import CampaignManagerView from './CampaignManagerView';
+import CampaignApprovalView from './CampaignApprovalView';
+import UserManagementView from './UserManagementView';
+import FinanceView from './FinanceView';
+import EarningsView from './EarningsView';
+import CommunicationView from './CommunicationView';
 
 const NavItem = ({ icon, label, active, onClick, index }) => (
     <motion.button
@@ -32,7 +33,7 @@ const NavItem = ({ icon, label, active, onClick, index }) => (
     </motion.button>
 );
 
-const AdminPanel = ({ onNavigate }) => {
+const AdminPanel = () => {
     const [activeView, setActiveView] = useState('dashboard');
     const navigate = useNavigate();
 
@@ -62,7 +63,8 @@ const AdminPanel = ({ onNavigate }) => {
             case 'campaigns': return <CampaignManagerView />;
             case 'campaign-approval': return <CampaignApprovalView />;
             case 'users': return <UserManagementView />;
-            case 'finance': return <FinanceView />;
+            case 'finance': return <FinanceView setView={setActiveView} />;
+            case 'earnings': return <EarningsView setView={setActiveView} />; // Pass setView prop
             case 'communication': return <CommunicationView />;
             case 'dashboard':
             default:
@@ -88,7 +90,7 @@ const AdminPanel = ({ onNavigate }) => {
                             index={index}
                             icon={item.icon}
                             label={item.label}
-                            active={activeView === item.id}
+                            active={activeView === item.id || (item.id === 'finance' && activeView === 'earnings')}
                             onClick={() => setActiveView(item.id)}
                         />
                     ))}

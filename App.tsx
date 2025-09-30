@@ -1,14 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
-import BrandPanel from './components/BrandPanel';
-import AdminPanel from './components/AdminPanel';
-import SuperAdminPanel from './components/adminpanel/SuperAdminPanel';
-import UploaderPanel from './components/UploaderPanel';
-import ScriptWriterPanel from './components/ScriptWriterPanel';
-import VideoEditorPanel from './components/VideoEditorPanel';
-
-import ThumbnailMakerPanel from './components/ThumbnailMakerPanel';
+import BrandPanel from './components/brandpanel/BrandPanel';
+import AdminPanel from './components/adminpanel/AdminPanel';
+import SuperAdminPanel from './components/superadminpanel/SuperAdminPanel';
+import UploaderPanel from './components/uploaderpanel/UploaderPanel';
+import ScriptWriterPanel from './components/scriptwriterpanel/ScriptWriterPanel';
+import VideoEditorPanel from './components/videoeditorpanel/VideoEditorPanel';
+import ThumbnailMakerPanel from './components/thumbnailmakerpanel/ThumbnailMakerPanel';
 import InstagramCallback from './components/InstagramCallback';
 import PrivateRoute from './components/PrivateRoute';
 import RoleBasedPortalLogin from './components/RoleBasedPortalLogin';

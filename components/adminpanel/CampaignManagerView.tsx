@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, onSnapshot, doc, getDoc, query, where } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { ICONS } from '../../constants';
 import NewCampaignForm from './NewCampaignForm';
@@ -63,7 +63,7 @@ const CampaignManagerView = () => {
 
     const filteredCampaigns = campaigns.filter(campaign =>
         campaign.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        campaign.brandName?.toLowerCase().includes(searchTerm.toLowerCase())
+        (brandNames[campaign.brandId] || campaign.brandName)?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     // Using AnimatePresence to handle modal animations
@@ -132,8 +132,8 @@ const CampaignManagerView = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-300/50">
-                            {filteredCampaigns.map((campaign) => (
-                                <tr key={campaign.id} className="hover:bg-white/30 transition-colors duration-200">
+                            {filteredCampaigns.map((campaign, index) => (
+                                <tr key={`${campaign.id}-${index}`} className="hover:bg-white/30 transition-colors duration-200">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">{campaign.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brandNames[campaign.brandId] || campaign.brandName || 'N/A'}</td>
                                     <td className="px-6 py-4 whitespace-nowrap"><StatusBadgeComponent status={campaign.status} /></td>

@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import authService from '../services/authService';
-import DashboardView from './scriptwriterpanel/DashboardView';
-import TasksView from './scriptwriterpanel/TasksView';
-import PaymentsView from './scriptwriterpanel/PaymentsView';
-import ProfileView from './scriptwriterpanel/ProfileView';
-import CollaborationView from './scriptwriterpanel/CollaborationView';
-import { ICONS } from '../constants';
+import authService from '../../services/authService';
+import DashboardView from './DashboardView';
+import TasksView from './TasksView';
+import PaymentsView from './PaymentsView';
+import ProfileView from './ProfileView';
+import CollaborationView from './CollaborationView';
+import { ICONS } from '../../constants';
 
 const NavItem = ({ icon, label, active, onClick, collapsed }) => (
     <button

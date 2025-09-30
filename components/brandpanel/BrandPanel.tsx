@@ -1,27 +1,27 @@
-
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, setDoc, doc, getDoc, onSnapshot, query, where, updateDoc } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db } from '../../services/firebase';
 import { useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
-import Logo from './Logo';
-import { ICONS } from '../constants'; 
-import DashboardView from './brandpanel/DashboardView';
-import CampaignsView from './brandpanel/CampaignsView';
-import AnalyticsView from './brandpanel/AnalyticsView';
-import BillingView from './brandpanel/BillingView';
-import SupportView from './brandpanel/SupportView';
-import ProfileView from './brandpanel/ProfileView';
-import CommunicationView from './brandpanel/CommunicationView';
-import CampaignDetailView from './brandpanel/CampaignDetailView';
-import NewCampaignForm from './brandpanel/NewCampaignForm';
-import OrderForm from './brandpanel/OrderForm';
-import PricingView from './brandpanel/PricingView';
+import { auth } from '../../services/firebase';
+import Logo from '../Logo';
+import { ICONS } from '../../constants';
+import DashboardView from './DashboardView';
+import CampaignsView from './CampaignsView';
+import AnalyticsView from './AnalyticsView';
+import BillingView from './BillingView';
+import SupportView from './SupportView';
+import ProfileView from './ProfileView';
+import CommunicationView from './CommunicationView';
+import CampaignDetailView from './CampaignDetailView';
+import NewCampaignForm from './NewCampaignForm';
+import OrderForm from './OrderForm';
+import PricingView from './PricingView';
+
 const NavItem = ({ icon, label, active, onClick }) => (
     <button
         onClick={onClick}
-        className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${active ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'} ${!label ? 'justify-center' : ''}`}
+        className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${active ? 'bg-blue-100/50 text-blue-700 border border-blue-200/80' : 'text-slate-700 hover:bg-white/30 hover:text-slate-900'} ${!label ? 'justify-center' : ''}`}
         aria-label={label || 'Sidebar item'}
         tabIndex={0}
     >
@@ -131,8 +131,7 @@ const BrandPanel = () => {
     useEffect(() => {
         localStorage.setItem('brandSelectedCampaign', JSON.stringify(selectedCampaign));
     }, [selectedCampaign]);
-
-    // *** THE BIG FIX Part 1: All data is now fetched from the correct root collections ***
+    
     useEffect(() => {
         if (!user?.uid) {
             setProfile({});
@@ -141,7 +140,6 @@ const BrandPanel = () => {
             return;
         }
 
-        // Real-time profile listener
         const profileUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
             if (doc.exists()) {
                 setProfile(doc.data());
@@ -150,14 +148,12 @@ const BrandPanel = () => {
             }
         }, (error) => console.error('Error in profile listener:', error));
 
-        // Real-time campaigns listener
         const campaignsQuery = query(collection(db, 'campaigns'), where('brandId', '==', user.uid));
         const campaignsUnsubscribe = onSnapshot(campaignsQuery, (snapshot) => {
             const campaignsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setCampaigns(campaignsList);
         }, (error) => console.error('Error in campaign listener:', error));
 
-        // Real-time orders listener
         const ordersQuery = query(collection(db, 'orders'), where('brandId', '==', user.uid));
         const ordersUnsubscribe = onSnapshot(ordersQuery, (snapshot) => {
             const ordersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -181,7 +177,6 @@ const BrandPanel = () => {
         setActiveView('campaigns');
     };
 
-    // *** THE BIG FIX Part 2: Creating campaigns in the correct collection ***
     const handleCreateCampaign = async (newCampaign) => {
         if (user && user.uid) {
             try {
@@ -200,7 +195,6 @@ const BrandPanel = () => {
         setShowNewCampaignForm(false);
     };
 
-    // *** THE BIG FIX Part 3: Updating campaigns in the correct collection ***
     const handleUpdateCampaign = async (updatedCampaign) => {
         if (user && user.uid && updatedCampaign.id) {
             try {
@@ -238,7 +232,6 @@ const BrandPanel = () => {
         }
     };
 
-    // Other handlers...
     const handleCancelNewCampaign = () => setShowNewCampaignForm(false);
     const handleCreateOrderForCampaign = (campaign) => {
         setSelectedCampaign(campaign);
@@ -261,7 +254,6 @@ const BrandPanel = () => {
     ];
 
     const renderView = () => {
-        // View rendering logic remains largely the same
         if (selectedCampaign && activeView === 'campaign_detail') {
             return <CampaignDetailView campaignId={selectedCampaign.id} onClose={handleBackToCampaigns} onCreateOrder={() => setShowOrderForm(true)} />;
         }
@@ -280,10 +272,9 @@ const BrandPanel = () => {
     };
 
     return (
-        <div className="flex h-screen bg-slate-100 font-sans text-slate-800">
-             {/* Sidebar & Header JSX remains the same */}
-             <aside className={`bg-white text-slate-700 flex flex-col no-scrollbar transition-all duration-300 ease-in-out border-r border-slate-200 shadow-sm ${sidebarCollapsed ? 'w-16' : 'w-64'} flex-shrink-0`}>
-                <div className="h-16 flex items-center px-6 border-b border-slate-200 flex-shrink-0">
+        <div className="flex h-screen bg-slate-200 from-white/30 bg-gradient-to-br font-sans text-slate-800">
+             <aside className={`bg-white/40 backdrop-blur-xl text-slate-800 flex flex-col no-scrollbar transition-all duration-300 ease-in-out border-r border-slate-300/70 shadow-sm ${sidebarCollapsed ? 'w-16' : 'w-64'} flex-shrink-0`}>
+                <div className="h-16 flex items-center px-6 border-b border-slate-300/70 flex-shrink-0">
                     <div className={`transition-all duration-300 ${sidebarCollapsed ? 'opacity-0' : 'opacity-100'}`}>
                         <Logo />
                     </div>
@@ -300,32 +291,32 @@ const BrandPanel = () => {
                         </div>
                     ))}
                 </nav>
-            <div className="px-4 py-4 border-t border-slate-200 flex-shrink-0">
-                 {secondaryNavItems.map(item => (
-                    <div key={item.id}>
-                        <NavItem
-                            icon={item.icon}
-                            label={sidebarCollapsed ? '' : item.label}
-                            active={activeView === item.id}
-                            onClick={() => { setActiveView(item.id); setSelectedCampaign(null); }}
-                        />
-                    </div>
-                ))}
-                <button
-                    onClick={handleLogout}
-                    className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100 hover:text-slate-900 mt-2 transition-all duration-300 ${sidebarCollapsed ? 'justify-center' : ''}`}
-                >
-                    <span className="mr-3">{ICONS.logout}</span>
-                    {!sidebarCollapsed && <span>Logout</span>}
-                </button>
-            </div>
+                <div className="px-4 py-4 border-t border-slate-300/70 flex-shrink-0">
+                    {secondaryNavItems.map(item => (
+                        <div key={item.id}>
+                            <NavItem
+                                icon={item.icon}
+                                label={sidebarCollapsed ? '' : item.label}
+                                active={activeView === item.id}
+                                onClick={() => { setActiveView(item.id); setSelectedCampaign(null); }}
+                            />
+                        </div>
+                    ))}
+                    <button
+                        onClick={handleLogout}
+                        className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg text-slate-700 hover:bg-white/30 hover:text-slate-900 mt-2 transition-all duration-300 ${sidebarCollapsed ? 'justify-center' : ''}`}
+                    >
+                        <span className="mr-3">{ICONS.logout}</span>
+                        {!sidebarCollapsed && <span>Logout</span>}
+                    </button>
+                </div>
             </aside>
             <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0">
+                <header className="h-16 bg-white/40 backdrop-blur-xl border-b border-slate-300/70 flex items-center justify-between px-6 flex-shrink-0">
                     <div className="flex items-center space-x-4">
                         <button
                             onClick={toggleSidebar}
-                            className="text-slate-500 hover:text-slate-900 transition-colors p-2 rounded-lg hover:bg-slate-100"
+                            className="text-slate-600 hover:text-slate-900 transition-colors p-2 rounded-lg hover:bg-white/30"
                             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
                             aria-label="Toggle sidebar"
                         >
@@ -334,24 +325,34 @@ const BrandPanel = () => {
                         <h1 className="text-xl font-bold text-slate-900 capitalize">{activeView.replace('_', ' ')}</h1>
                     </div>
                     <div className="flex items-center space-x-4">
-                        <button className="text-slate-500 hover:text-slate-900">{ICONS.bell}</button>
-                        <button className="text-slate-500 hover:text-slate-900">{ICONS.userCircle}</button>
+                        <button className="text-slate-600 hover:text-slate-900">{ICONS.bell}</button>
+                        <button className="text-slate-600 hover:text-slate-900">{ICONS.userCircle}</button>
                     </div>
                 </header>
-                <main className="flex-1 overflow-y-auto bg-slate-100 p-8">{renderView()}</main>
+                <main className="flex-1 overflow-y-auto p-8">{renderView()}</main>
             </div>
+
+            {/* MODAL FORMS WITH GLASS EFFECT */}
             {showNewCampaignForm && (
-                <NewCampaignForm
-                    onCreateCampaign={handleCreateCampaign}
-                    onCancel={handleCancelNewCampaign}
-                />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4">
+                    <div className="w-full max-w-2xl rounded-2xl border border-slate-300/70 bg-white/40 p-6 shadow-2xl backdrop-blur-xl">
+                        <NewCampaignForm
+                            onCreateCampaign={handleCreateCampaign}
+                            onCancel={handleCancelNewCampaign}
+                        />
+                    </div>
+                </div>
             )}
             {showOrderForm && selectedCampaign && (
-                <OrderForm
-                    campaign={selectedCampaign}
-                    onCreateOrder={handleCreateOrder}
-                    onCancel={handleCancelOrder}
-                />
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4">
+                    <div className="w-full max-w-2xl rounded-2xl border border-slate-300/70 bg-white/40 p-6 shadow-2xl backdrop-blur-xl">
+                        <OrderForm
+                            campaign={selectedCampaign}
+                            onCreateOrder={handleCreateOrder}
+                            onCancel={handleCancelOrder}
+                        />
+                    </div>
+                </div>
             )}
         </div>
     );

@@ -36,7 +36,6 @@ const containerVariants = {
 // 🧩 StatCard Component — iOS स्टाइल फ्रॉस्टेड ग्लास
 const StatCard = ({ title, value, change, icon, color, size = 'normal' }) => (
   <motion.div
-    // THEME UPDATE: iOS स्टाइल ग्लास इफ़ेक्ट
     className={`bg-white/40 backdrop-blur-xl p-6 rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 ${
       size === 'large' ? 'md:col-span-2' : ''
     }`}
@@ -102,9 +101,7 @@ const DashboardView = ({ onViewChange }) => {
   }, [campaigns, users]);
 
   return (
-    // THEME UPDATE: iOS जैसा वॉलपेपर स्टाइल बैकग्राउंड
     <div className="min-h-screen p-4 md:p-8 font-sans bg-slate-200 bg-gradient-to-br from-white/30 via-transparent to-transparent">
-      {/* 👑 Header Section */}
       <motion.div
         className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-6 mb-8"
         initial={{ opacity: 0, y: -20 }}
@@ -138,18 +135,10 @@ const DashboardView = ({ onViewChange }) => {
               </div>
             ) : (
               <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-8">
-                {/* 📊 Stats Cards Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                   <StatCard
-                    title="Total Revenue" value={`₹${dashboardData.totalRevenue.toLocaleString()}`}
-                    change={<span className="text-green-600 flex items-center gap-1 font-medium">{ICONS.trendingUp} +12%</span>}
-                    icon={ICONS.currencyRupee} color={{bg: "bg-green-100", text: "text-green-600"}}
-                  />
-                  <StatCard
-                    title="Net Profit" value={`₹${Math.round(dashboardData.netProfit).toLocaleString()}`}
-                    change={<span className="text-green-600 flex items-center gap-1 font-medium">{ICONS.trendingUp} +8%</span>}
-                    icon={ICONS.money} color={{bg: "bg-blue-100", text: "text-blue-600"}}
-                  />
+                  {/* "Total Revenue" वाला StatCard यहाँ से हटा दिया गया है। */}
+                  {/* "Net Profit" वाला StatCard पहले ही हटा दिया गया था। */}
+                  
                   <StatCard
                     title="Active Campaigns" value={dashboardData.activeCampaigns.toString()}
                     change={`${dashboardData.pendingApprovals} pending`} icon={ICONS.playCircle}
@@ -172,7 +161,6 @@ const DashboardView = ({ onViewChange }) => {
                   />
                 </div>
 
-                {/* 📈 Main Content Grid */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
                   <motion.div className="xl:col-span-2 bg-white/40 backdrop-blur-xl p-6 rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80" variants={itemVariants}>
                     <h3 className="font-bold text-xl mb-6 text-slate-800">Revenue Analytics</h3>

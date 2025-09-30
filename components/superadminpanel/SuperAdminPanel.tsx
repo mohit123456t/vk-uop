@@ -9,19 +9,19 @@ import UploaderManagerView from './UploaderManagerView';
 import ScriptWriterManagerView from './ScriptWriterManagerView';
 import ThumbnailMakerManagerView from './ThumbnailMakerManagerView';
 import VideoEditorManagerView from './VideoEditorManagerView';
+import PricingManagement from './PricingManagement';
 import { ICONS } from '../../constants';
 import authService from '../../services/authService';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 
-// THEME UPDATE: NavItem को "iOS Frosted Glass" थीम के लिए स्टाइल किया गया है
 const NavItem = ({ icon, label, active, onClick, index }) => (
     <motion.button
         onClick={onClick}
         className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
             active
-                ? 'bg-white/40 text-indigo-700 font-semibold' // एक्टिव स्टाइल
-                : 'text-slate-700 hover:bg-white/20' // इनएक्टिव स्टाइल
+                ? 'bg-white/40 text-indigo-700 font-semibold'
+                : 'text-slate-700 hover:bg-white/20'
         }`}
         whileHover={{ x: active ? 0 : 5 }}
         whileTap={{ scale: 0.98 }}
@@ -43,7 +43,6 @@ const SuperAdminPanel = () => {
     const [users, setUsers] = useState([]);
     const navigate = useNavigate();
 
-    // ... (Your data fetching logic remains unchanged)
     useEffect(() => {
         const unsubCampaigns = onSnapshot(collection(db, 'campaigns'), (snapshot) => setCampaigns(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
         const unsubUsers = onSnapshot(collection(db, 'users'), (snapshot) => setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))));
@@ -51,22 +50,28 @@ const SuperAdminPanel = () => {
     }, []);
     useEffect(() => {
         if (!campaigns || !users) return;
-        // Data processing logic...
         const totalCampaignEarnings = campaigns.reduce((sum, c) => sum + Number(c.budget || 0), 0);
         const staffRoles = ['video_editor', 'script_writer', 'thumbnail_maker', 'uploader'];
         const totalExpenses = users.filter(u => staffRoles.includes(u.role)).reduce((sum, u) => sum + Number(u.salary || 0), 0);
-        const netProfit = totalCampaignEarnings - totalExpenses;
-        const brands = users.filter(u => u.role === 'brand');
-        const activeCampaigns = campaigns.filter(c => c.status === 'Active');
-        const brandsWithLiveCampaigns = new Set(activeCampaigns.map(c => c.brandId)).size;
-        const computedDashboardData = { /* ... */ };
-        const computedFinanceData = { /* ... */ };
-        setDashboardData(computedDashboardData);
-        setFinanceData(computedFinanceData);
+        setFinanceData({
+            totalRevenue: totalCampaignEarnings,
+            totalExpenses: totalExpenses,
+        });
+        setDashboardData({
+             // ... other dashboard data
+        });
         setIsLoading(false);
     }, [campaigns, users]);
 
-    const handleLogout = async () => { /* ... */ };
+    const handleLogout = async () => {
+        try {
+            await authService.logout();
+            navigate('/');
+        } catch (error) {
+            console.error('Logout error:', error);
+            navigate('/');
+        }
+    };
 
     const renderView = () => {
         if (isLoading) {
@@ -80,13 +85,13 @@ const SuperAdminPanel = () => {
             case 'thumbnail_maker_manager': return <ThumbnailMakerManagerView />;
             case 'video_editor_manager': return <VideoEditorManagerView />;
             case 'reels_uploaded': return <ReelsUploadedPage />;
-            case 'finance': return <SuperAdminFinance data={financeData} />;
+            case 'finance': return <SuperAdminFinance data={financeData} onNavigate={setActiveView} />;
+            case 'pricing_management': return <PricingManagement />;
             default: return <SuperAdminDashboard data={dashboardData} />;
         }
     };
 
     const superAdminNavItems = [
-        // ... (nav items list remains unchanged)
         { id: 'dashboard', label: 'Dashboard', icon: ICONS.layout },
         { id: 'finance', label: 'Finance', icon: ICONS.currencyRupee },
         { id: 'staff_management', label: 'Staff Management', icon: ICONS.usersGroup },
@@ -98,9 +103,7 @@ const SuperAdminPanel = () => {
     ];
 
     return (
-        // THEME UPDATE: पूरे पैनल को "iOS Wallpaper" बैकग्राउंड दिया गया है
         <div className="flex h-screen font-sans bg-slate-200 bg-gradient-to-br from-white/30 via-transparent to-transparent">
-            {/* THEME UPDATE: साइडबार को "Frosted Glass" पैनल बनाया गया है */}
             <motion.aside 
                 className="fixed left-0 top-0 h-full w-64 bg-white/40 backdrop-blur-xl flex flex-col z-50 shadow-2xl border-r border-slate-300/70"
                 initial={{ x: -256 }}
@@ -135,7 +138,6 @@ const SuperAdminPanel = () => {
                 </div>
             </motion.aside>
 
-            {/* THEME UPDATE: मेन एरिया से बैकग्राउंड हटाया गया है ताकि वॉलपेपर दिखे */}
             <main className="flex-1 ml-64 overflow-y-auto">
                  <AnimatePresence mode="wait">
                     <motion.div

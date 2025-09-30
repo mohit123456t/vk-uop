@@ -2,26 +2,32 @@ import React from 'react';
 import { ICONS } from '../../constants';
 import { motion } from 'framer-motion';
 
-// StatusBadge component (unchanged)
+// StatusBadge component - Themed
 const StatusBadge = ({ status }) => {
-    const baseClasses = "text-xs font-semibold px-3 py-1 rounded-full shadow-sm inline-block";
-    const statusClasses = {
-        "Active": "bg-gradient-to-r from-green-400 to-green-500 text-black",
-        "Completed": "bg-gradient-to-r from-slate-400 to-slate-500 text-green",
-        "Paused": "bg-gradient-to-r from-yellow-400 to-yellow-500 text-yellow",
-        "Rejected": "bg-gradient-to-r from-red-400 to-red-500 text-red", 
+    // Using RGBA values within Tailwind for better control and readability
+    const statusStyles = {
+        "Active": { bg: 'bg-green-500/20', text: 'text-green-800' },
+        "Completed": { bg: 'bg-slate-500/20', text: 'text-slate-800' },
+        "Paused": { bg: 'bg-yellow-500/20', text: 'text-yellow-800' },
+        "Rejected": { bg: 'bg-red-500/20', text: 'text-red-800' },
+        "Pending Approval": { bg: 'bg-blue-500/20', text: 'text-blue-800' },
     };
-    return <span className={`${baseClasses} ${statusClasses[status] || 'bg-gray-400 text-white'}`}>{status}</span>;
+    const style = statusStyles[status] || { bg: 'bg-gray-500/20', text: 'text-gray-800' };
+    const baseClasses = "text-xs font-semibold px-3 py-1 rounded-full inline-block";
+
+    return <span className={`${baseClasses} ${style.bg} ${style.text}`}>{status}</span>;
 };
 
-// CampaignCard Component — Reusable for each campaign
+
+// CampaignCard Component — Themed for Glassmorphism
 const CampaignCard = ({ campaign, onSelectCampaign, onCreateOrder }) => {
     const handleSelect = () => onSelectCampaign && onSelectCampaign(campaign);
     const handleCreateOrder = () => onCreateOrder && onCreateOrder(campaign);
 
     const engagementRate = campaign.engagementRate || '0.00%';
-    const lastUpdated = campaign.lastUpdated || 'N/A';
-    const reelsCount = campaign.reelsCount || 0;
+    const lastUpdated = campaign.lastUpdated ? new Date(campaign.lastUpdated).toLocaleDateString() : 'N/A';
+    // FIX: Changed campaign.reelsCount to campaign.reels to match the data being saved.
+    const reelsCount = campaign.reels || 0;
     const views = (campaign.views || 0).toLocaleString();
 
     return (
@@ -29,45 +35,47 @@ const CampaignCard = ({ campaign, onSelectCampaign, onCreateOrder }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="bg-white rounded-xl shadow-md border border-slate-200/80 p-6 hover:shadow-lg transition-shadow duration-300"
+            className="bg-white/40 backdrop-blur-xl rounded-2xl shadow-lg border border-slate-300/70 p-6 hover:shadow-xl transition-shadow duration-300 flex flex-col"
         >
-            {/* Campaign Name & Status */}
-            <div className="flex justify-between items-start mb-4">
-                <h3 className="text-lg font-bold text-slate-900">{campaign.name}</h3>
-                <StatusBadge status={campaign.status} />
-            </div>
+            <div className="flex-grow">
+                {/* Campaign Name & Status */}
+                <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-bold text-slate-900">{campaign.name}</h3>
+                    <StatusBadge status={campaign.status} />
+                </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5 text-sm">
-                <div className="bg-slate-50 p-3 rounded-lg">
-                    <div className="text-slate-500">Reels</div>
-                    <div className="font-semibold text-slate-900">{reelsCount}</div>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg">
-                    <div className="text-slate-500">Total Views</div>
-                    <div className="font-semibold text-slate-900">{views}</div>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg">
-                    <div className="text-slate-500">Engagement Rate</div>
-                    <div className="font-semibold text-slate-900">{engagementRate}</div>
-                </div>
-                <div className="bg-slate-50 p-3 rounded-lg md:col-span-2 lg:col-span-1">
-                    <div className="text-slate-500">Last Updated</div>
-                    <div className="font-semibold text-slate-900">{lastUpdated}</div>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-5 text-sm">
+                    <div className="bg-black/5 p-3 rounded-lg">
+                        <div className="text-slate-700">Reels</div>
+                        <div className="font-semibold text-slate-900 text-base">{reelsCount}</div>
+                    </div>
+                    <div className="bg-black/5 p-3 rounded-lg">
+                        <div className="text-slate-700">Total Views</div>
+                        <div className="font-semibold text-slate-900 text-base">{views}</div>
+                    </div>
+                    <div className="bg-black/5 p-3 rounded-lg">
+                        <div className="text-slate-700">Engagement</div>
+                        <div className="font-semibold text-slate-900 text-base">{engagementRate}</div>
+                    </div>
+                    <div className="bg-black/5 p-3 rounded-lg col-span-2 md:col-span-3">
+                        <div className="text-slate-700">Last Updated</div>
+                        <div className="font-semibold text-slate-900 text-base">{lastUpdated}</div>
+                    </div>
                 </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex justify-between mt-4">
+            <div className="flex justify-between items-center mt-4 border-t border-slate-300/70 pt-4">
                 <button
                     onClick={handleSelect}
-                    className="text-blue-600 font-medium hover:underline text-sm"
+                    className="text-blue-700 font-semibold hover:underline text-sm"
                 >
                     View Details
                 </button>
                 <button
                     onClick={handleCreateOrder}
-                    className="bg-green-600 text-white px-4 py-2 rounded text-sm font-medium hover:bg-green-700 transition-colors"
+                    className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-slate-900 transition-colors shadow-sm"
                 >
                     Add Order
                 </button>
@@ -76,7 +84,7 @@ const CampaignCard = ({ campaign, onSelectCampaign, onCreateOrder }) => {
     );
 };
 
-// Main CampaignsView Component — Card Layout
+// Main CampaignsView Component — Layout
 const CampaignsView = ({ campaigns = [], onSelectCampaign, onNewCampaign, onCreateOrder }) => {
     const handleNewCampaign = () => {
         if (onNewCampaign) {
@@ -87,31 +95,32 @@ const CampaignsView = ({ campaigns = [], onSelectCampaign, onNewCampaign, onCrea
     return (
         <div className="animate-fade-in">
             {/* Header */}
-            <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-slate-900">Your Campaigns</h1>
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold text-slate-900">Your Campaigns</h1>
                 <button
                     onClick={handleNewCampaign}
-                    className="flex items-center bg-slate-900 text-white font-semibold py-2 px-4 rounded-lg text-sm hover:bg-slate-800 transition-colors"
+                    className="flex items-center bg-slate-900 text-white font-semibold py-2 px-5 rounded-lg text-sm hover:bg-slate-800 transition-colors shadow-md"
                 >
                     <span className="mr-2">{ICONS.plus}</span>
                     New Campaign
                 </button>
             </div>
 
-            {/* No Campaigns Message */}
+            {/* No Campaigns Message - Themed */}
             {campaigns.length === 0 ? (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 p-12 text-center">
-                    <p className="text-slate-500 text-lg">No campaigns found.</p>
+                <div className="bg-white/40 backdrop-blur-xl rounded-2xl shadow-lg border border-slate-300/70 p-12 text-center">
+                    <p className="text-slate-700 text-lg mb-2">No campaigns found.</p>
+                    <p className="text-slate-600">Ready to start? Create your first campaign now.</p>
                     <button
                         onClick={handleNewCampaign}
-                        className="mt-4 text-blue-600 font-medium hover:underline"
+                        className="mt-6 bg-slate-800 text-white font-semibold py-2 px-5 rounded-lg text-sm hover:bg-slate-900 transition-colors"
                     >
-                        Create your first campaign
+                        Create Campaign
                     </button>
                 </div>
             ) : (
                 /* Campaign Cards Grid */
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {campaigns.map((campaign, index) => (
                         <CampaignCard
                             key={`${campaign.id}-${index}`}

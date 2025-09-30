@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion'; // 👈 Added for animations
-import Logo from './Logo';
+import Logo from '../Logo';
 import { ICONS } from '@/constants.tsx';
-import authService from '../services/authService';
+import authService from '../../services/authService';
 
 // Views
-import DashboardView from './uploaderpanel/DashboardView';
-import AssignedTasksView from './uploaderpanel/AssignedTasksView';
-import AccountsView from './uploaderpanel/AccountsView';
-import CommunicationView from './uploaderpanel/CommunicationView';
-import EarningsView from './uploaderpanel/EarningsView';
-import UserProfileView from './uploaderpanel/UserProfileView';
+import DashboardView from './DashboardView';
+import AssignedTasksView from './AssignedTasksView';
+import AccountsView from './AccountsView';
+import CommunicationView from './CommunicationView';
+import EarningsView from './EarningsView';
+import UserProfileView from './UserProfileView';
 
 // 🧩 NavItem Component — White Theme, Elegant Hover & Active States
 const NavItem = ({ icon, label, active, onClick, ...props }) => (

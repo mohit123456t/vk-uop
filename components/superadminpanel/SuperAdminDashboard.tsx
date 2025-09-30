@@ -82,7 +82,7 @@ const SuperAdminDashboard = ({ data }) => {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard
           title="Brands with Live Campaigns" value={safeFormat(dashboardData.brandsWithLiveCampaigns)}
           icon={ICONS.checkCircle} color="bg-teal-100 text-teal-600" size="large"
@@ -91,9 +91,6 @@ const SuperAdminDashboard = ({ data }) => {
           title="Brands without Campaigns" value={safeFormat(dashboardData.brandsWithoutCampaigns)}
           icon={ICONS.users} color="bg-yellow-100 text-yellow-600" size="large"
         />
-      </div>
-      
-      <div className="grid grid-cols-1">
         <StatCard
           title="Total Campaign Earnings" value={`₹${safeFormat(dashboardData.totalCampaignEarnings)}`}
           icon={ICONS.currencyRupee} color="bg-pink-100 text-pink-600" size="large"

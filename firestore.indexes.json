@@ -1,39 +1,25 @@
 {
   "indexes": [
     {
-      "collectionGroup": "team_messages",
+      "collectionGroup": "transactions",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "channel",
+          "fieldPath": "brandId",
           "order": "ASCENDING"
         },
         {
           "fieldPath": "timestamp",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "payments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "scriptWriterEmail",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "date",
           "order": "DESCENDING"
         }
       ]
     },
     {
-      "collectionGroup": "script_tasks",
+      "collectionGroup": "campaigns",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "assignedTo",
+          "fieldPath": "status",
           "order": "ASCENDING"
         },
         {
@@ -43,19 +29,15 @@
       ]
     },
     {
-      "collectionGroup": "script_tasks",
+      "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "assignedTo",
+          "fieldPath": "role",
           "order": "ASCENDING"
         },
         {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAt",
+          "fieldPath": "createdAt",
           "order": "DESCENDING"
         }
       ]

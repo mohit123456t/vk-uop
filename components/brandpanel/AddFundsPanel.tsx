@@ -1,248 +1,164 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
+import { doc, setDoc, serverTimestamp, onSnapshot, collection } from 'firebase/firestore';
+import { ICONS } from '../../constants';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// Animated Number Counter
-const AnimatedNumber = ({ value, duration = 1000, prefix = '' }) => {
-    const [displayValue, setDisplayValue] = useState(0);
+interface AddFundsPanelProps {
+    user: { uid: string };
+    onComplete: () => void;
+}
 
-    useEffect(() => {
-        let start = 0;
-        const increment = value / (duration / 16);
-        const timer = setInterval(() => {
-            start += increment;
-            if (start >= value) {
-                setDisplayValue(value);
-                clearInterval(timer);
-            } else {
-                setDisplayValue(Math.floor(start));
-            }
-        }, 16);
-        return () => clearInterval(timer);
-    }, [value, duration]);
+interface Transaction {
+    amount: number;
+    brandId: string;
+    status: 'Pending' | 'Completed' | 'Rejected';
+    timestamp: any;
+    transactionId: string;
+    type: 'DEPOSIT' | 'WITHDRAWAL' | 'CAMPAIGN_SPEND';
+}
 
-    return <span>{prefix}{displayValue.toLocaleString('en-IN')}</span>;
-};
+// QR Code Component
+const QRCodeDisplay = ({ amount, onPaymentDone, onCancel }) => (
+    <div className="text-center p-6 bg-white/50 rounded-xl border border-slate-300/50">
+        <h3 className="font-bold text-lg text-slate-800">Scan to Pay</h3>
+        <p className="text-sm text-slate-600 mb-4">Use any UPI app</p>
+        <div className="flex justify-center mb-4">
+            {/* Placeholder for actual QR Code */}
+            <div className="w-48 h-48 bg-slate-300 flex items-center justify-center rounded-lg">
+                <p className="text-slate-500 text-sm">QR Code for ₹{amount}</p>
+            </div>
+        </div>
+        <p className="font-semibold text-slate-800">Amount: ₹{amount}</p>
+        <p className="text-xs text-slate-500 mt-1">Once paid, click the button below.</p>
+        <div className="flex gap-4 mt-6">
+            <button onClick={onCancel} className="flex-1 px-4 py-2.5 font-semibold text-slate-700 bg-slate-500/10 hover:bg-slate-500/20 rounded-lg">Cancel</button>
+            <button onClick={onPaymentDone} className="flex-1 px-4 py-2.5 font-semibold text-white bg-green-600 hover:bg-green-700 rounded-lg">I have paid</button>
+        </div>
+    </div>
+);
 
-const AddFundsPanel = ({ user }) => {
+const AddFundsPanel: React.FC<AddFundsPanelProps> = ({ user, onComplete }) => {
     const [amount, setAmount] = useState('');
     const [balance, setBalance] = useState(0);
+    const [loading, setLoading] = useState(true);
+    const [requesting, setRequesting] = useState(false);
     const [showQR, setShowQR] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
-    const upiId = 'admin@upi'; // Mock UPI ID
 
     useEffect(() => {
-        const fetchBalance = async () => {
-            if (!user?.uid) return;
-            setLoading(true);
-            try {
-                const billingDoc = doc(db, `users/${user.uid}/billing/main`);
-                const billingSnap = await getDoc(billingDoc);
-                if (billingSnap.exists()) {
-                    setBalance(billingSnap.data().balance || 0);
-                } else {
-                    setBalance(0);
-                }
-            } catch (err) {
-                setError('Failed to load balance');
-            } finally {
-                setLoading(false);
+        if (!user?.uid) return;
+        setLoading(true);
+        const userDocRef = doc(db, 'users', user.uid);
+
+        const unsubscribe = onSnapshot(userDocRef, (doc) => {
+            if (doc.exists()) {
+                 // FIX: Changed walletBalance to balance for consistency across the app.
+                setBalance(doc.data().balance || 0);
             }
-        };
-        fetchBalance();
+            setLoading(false);
+        }, (err) => {
+            setError('Failed to load balance');
+            setLoading(false);
+        });
+
+        return () => unsubscribe();
     }, [user]);
 
-    const handleAddFunds = async () => {
+    const handleAddFunds = () => {
         setError('');
-        setSuccess('');
         const amt = parseFloat(amount);
         if (isNaN(amt) || amt <= 0) {
             setError('⚠️ Please enter a valid amount');
             return;
         }
         if (amt > 100000) {
-            setError('⚠️ Maximum amount is ₹1,00,000');
+            setError('⚠️ Maximum amount per transaction is ₹1,00,000');
             return;
         }
         setShowQR(true);
     };
 
     const handlePaymentDone = async () => {
+        setRequesting(true);
+        setError('');
         const amt = parseFloat(amount);
-        if (isNaN(amt) || amt <= 0) return;
+        const transactionId = `TID_${Date.now()}`;
 
-        const newBalance = balance + amt;
-        setBalance(newBalance);
-        setAmount('');
-        setShowQR(false);
-        setSuccess(`✅ ₹${amt.toFixed(2)} added successfully!`);
+        try {
+            const newTransaction: Transaction = {
+                amount: amt,
+                brandId: user!.uid,
+                status: 'Pending',
+                timestamp: serverTimestamp(),
+                transactionId,
+                type: 'DEPOSIT'
+            };
 
-        // Save to Firestore
-        if (user?.uid) {
-            try {
-                const billingDoc = doc(db, `users/${user.uid}/binding/main`);
-                await setDoc(billingDoc, { balance: newBalance }, { merge: true });
-            } catch (err) {
-                setError('Failed to update balance');
-            }
+            await setDoc(doc(db, 'transactions', transactionId), newTransaction);
+
+            setSuccess(`Request for ₹${amt} submitted. It will be reflected in your balance upon approval.`);
+            setShowQR(false);
+            setAmount('');
+            setTimeout(() => {
+                setSuccess('');
+                if (onComplete) onComplete();
+            }, 5000); // Hide message and call onComplete after 5s
+
+        } catch (err) {
+            console.error("Error submitting transaction:", err);
+            setError('Could not submit request. Please try again.');
+        } finally {
+            setRequesting(false);
         }
-
-        // Auto-hide success message
-        setTimeout(() => setSuccess(''), 3000);
     };
 
+    if (success) {
+        return (
+            <div className="text-center p-6 bg-green-500/10 rounded-lg">
+                <div className="text-green-700 text-3xl mb-3">{ICONS.checkCircle}</div>
+                <p className="font-semibold text-green-800">{success}</p>
+            </div>
+        );
+    }
+
+    if (showQR) {
+        return <QRCodeDisplay amount={amount} onPaymentDone={handlePaymentDone} onCancel={() => setShowQR(false)} />;
+    }
+
     return (
-        <div className="animate-fade-in p-4 sm:p-6">
-            {/* Header */}
-            <div className="text-center mb-8">
-                <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
-                    💰 Add Funds
-                </h1>
-                <p className="text-slate-500 text-sm">Securely add money to your account</p>
+        <div className="animate-fade-in">
+            <div className="text-center mb-6">
+                <h1 className="text-2xl font-bold text-slate-800">Add Funds to Wallet</h1>
+                <p className="text-slate-600 text-sm mt-1">Securely add money to your account balance</p>
             </div>
 
-            {/* Main Card */}
-            <div className="max-w-md mx-auto bg-white rounded-2xl shadow-xl border border-slate-200/60 overflow-hidden transition-all duration-300 hover:shadow-2xl">
-                {/* Balance Header */}
-                <div className="bg-gradient-to-r from-green-500 to-emerald-600 p-5 text-white">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-sm opacity-90">Current Balance</p>
-                            <p className="text-2xl sm:text-3xl font-bold mt-1">
-                                ₹<AnimatedNumber value={balance} duration={1500} />
-                            </p>
-                        </div>
-                        <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Form Section */}
-                <div className="p-5 sm:p-6">
-                    <div className="space-y-5">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                Enter Amount
-                            </label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">₹</span>
-                                <input
-                                    type="number"
-                                    min="1"
-                                    max="100000"
-                                    step="0.01"
-                                    value={amount}
-                                    onChange={e => setAmount(e.target.value)}
-                                    placeholder="0.00"
-                                    className="w-full pl-8 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition placeholder:text-slate-400"
-                                />
-                            </div>
-                        </div>
-
-                        {error && (
-                            <div className="p-3 rounded-xl bg-red-50 text-red-700 text-sm font-medium border border-red-200">
-                                {error}
-                            </div>
-                        )}
-
-                        {success && (
-                            <div className="p-3 rounded-xl bg-green-50 text-green-700 text-sm font-medium border border-green-200 animate-pulse">
-                                {success}
-                            </div>
-                        )}
-
-                        <button
-                            onClick={handleAddFunds}
-                            disabled={!amount || parseFloat(amount) <= 0 || loading}
-                            className="w-full py-3 px-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-xl hover:from-green-700 hover:to-emerald-700 active:scale-95 transform transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {loading ? (
-                                <span className="flex items-center justify-center">
-                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    Loading...
-                                </span>
-                            ) : (
-                                '➕ Add Funds'
-                            )}
-                        </button>
-
-                        {/* Quick Amount Buttons */}
-                        <div className="grid grid-cols-4 gap-2">
-                            {[500, 1000, 2000, 5000].map(amt => (
-                                <button
-                                    key={amt}
-                                    onClick={() => setAmount(amt.toString())}
-                                    className="py-2 px-3 text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors active:scale-95"
-                                >
-                                    ₹{amt}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
+            <div className="text-center p-4 mb-4 bg-slate-800/5 rounded-lg">
+                <p className="text-sm text-slate-600 font-medium">Current Balance</p>
+                <p className="text-2xl font-bold text-slate-800">{loading ? 'Loading...' : `₹${balance.toLocaleString('en-IN')}`}</p>
             </div>
-
-            {/* QR Modal */}
-            {showQR && (
-                <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-auto transform animate-scale-in">
-                        <div className="p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-xl font-bold text-slate-800">💳 Payment Gateway</h3>
-                                <button
-                                    onClick={() => setShowQR(false)}
-                                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
-                                >
-                                    <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            <div className="text-center mb-6">
-                                <div className="w-48 h-48 mx-auto bg-gradient-to-br from-green-100 to-emerald-100 rounded-2xl flex items-center justify-center border-2 border-dashed border-green-300 mb-4">
-                                    <div className="text-center">
-                                        <div className="w-16 h-16 mx-auto bg-green-500 rounded-full flex items-center justify-center mb-3">
-                                            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                                            </svg>
-                                        </div>
-                                        <p className="text-sm text-slate-600">Scan to Pay</p>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <p className="font-medium text-slate-800">Amount: <span className="text-green-600">₹{amount}</span></p>
-                                    <p className="text-sm text-slate-600">UPI ID: <span className="font-mono bg-slate-100 px-2 py-1 rounded">{upiId}</span></p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-3">
-                                <button
-                                    onClick={handlePaymentDone}
-                                    className="w-full py-3 px-4 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-medium rounded-xl hover:from-green-700 hover:to-emerald-700 active:scale-95 transform transition-all shadow-lg hover:shadow-xl"
-                                >
-                                    ✅ Payment Done
-                                </button>
-                                <button
-                                    onClick={() => setShowQR(false)}
-                                    className="w-full py-3 px-4 bg-slate-600 text-white font-medium rounded-xl hover:bg-slate-700 active:scale-95 transform transition-all"
-                                >
-                                    ❌ Cancel
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            
+            <div className="space-y-4">
+                <label htmlFor="amount" className="sr-only">Amount</label>
+                <input
+                    type="number"
+                    id="amount"
+                    value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    placeholder="Enter Amount (e.g., 5000)"
+                    className="w-full text-center text-lg px-4 py-3 bg-white/50 border-2 border-slate-300/70 rounded-xl focus:ring-2 focus:ring-slate-500 outline-none transition"
+                    disabled={requesting}
+                />
+                {error && <p className="text-center text-sm text-red-600">{error}</p>}
+                <button 
+                    onClick={handleAddFunds}
+                    disabled={requesting || loading}
+                    className="w-full px-6 py-4 font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {requesting ? 'Processing...' : 'Proceed to Add Funds'}
+                </button>
+            </div>
         </div>
     );
 };

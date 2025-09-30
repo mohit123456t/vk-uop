@@ -19,13 +19,11 @@ const FinanceStatCard = ({ title, value, icon, color }) => (
     </motion.div>
 );
 
-const SuperAdminFinance = ({ data }) => {
+const SuperAdminFinance = ({ data, onNavigate }) => { // Accept onNavigate prop
     const financeData = data || {};
 
     // Helper to safely format numbers, defaulting to 0
     const safeFormat = (value) => formatNumber(value || 0);
-
-    const netProfit = financeData.netProfit || 0;
 
     // Dummy data for the chart, replace with real data later
     const monthlyData = [
@@ -43,12 +41,22 @@ const SuperAdminFinance = ({ data }) => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
         >
-            <div>
-                <h1 className="text-3xl font-bold text-slate-800 tracking-tighter">Financial Overview</h1>
-                <p className="text-slate-500 mt-1">Real-time tracking of revenue, expenses, and profit.</p>
+            <div className="flex justify-between items-start">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-800 tracking-tighter">Financial Overview</h1>
+                    <p className="text-slate-500 mt-1">Real-time tracking of revenue, and expenses.</p>
+                </div>
+                <motion.button
+                    onClick={() => onNavigate('pricing_management')}
+                    className="flex items-center bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/30"
+                    whileHover={{ scale: 1.05 }}
+                >
+                    <span className="mr-2">{ICONS.tag}</span>
+                    Manage Pricing
+                </motion.button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FinanceStatCard 
                     title="Total Revenue"
                     value={safeFormat(financeData.totalRevenue)} 
@@ -60,12 +68,6 @@ const SuperAdminFinance = ({ data }) => {
                     value={safeFormat(financeData.totalExpenses)} 
                     icon={ICONS.chartBar}
                     color="bg-red-100 text-red-600"
-                />
-                <FinanceStatCard 
-                    title="Net Profit"
-                    value={safeFormat(netProfit)} 
-                    icon={ICONS.trendingUp}
-                    color={`bg-blue-100 ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}`}
                 />
             </div>
 

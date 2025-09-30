@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ICONS } from '../../constants';
 
 const OrderForm = ({ campaign, onCreateOrder, onCancel }) => {
     const [formData, setFormData] = useState({
@@ -9,12 +8,7 @@ const OrderForm = ({ campaign, onCreateOrder, onCancel }) => {
         deadline: '',
         notes: ''
     });
-    const [errors, setErrors] = useState({
-        type: '',
-        quantity: '',
-        budget: '',
-        deadline: ''
-    });
+    const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
     const orderTypes = [
         'Reels Creation',
@@ -25,35 +19,31 @@ const OrderForm = ({ campaign, onCreateOrder, onCancel }) => {
         'Social Media Management'
     ];
 
-    const handleInputChange = (e) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-        // Clear error when user starts typing
+        setFormData(prev => ({ ...prev, [name]: value }));
         if (errors[name]) {
-            setErrors(prev => ({
-                ...prev,
-                [name]: ''
-            }));
+            setErrors(prev => ({ ...prev, [name]: '' }));
         }
     };
 
     const validateForm = () => {
         const newErrors: { [key: string]: string } = {};
         if (!formData.type) newErrors.type = 'Order type is required';
-        if (!formData.quantity || parseInt(formData.quantity) <= 0) newErrors.quantity = 'Valid quantity is required';
-        if (!formData.budget || parseFloat(formData.budget) <= 0) newErrors.budget = 'Valid budget is required';
-        if (!formData.deadline) newErrors.deadline = 'Deadline is required';
-        const deadlineDate = new Date(formData.deadline);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        if (deadlineDate <= today) newErrors.deadline = 'Deadline must be in the future';
+        if (!formData.quantity || parseInt(formData.quantity) <= 0) newErrors.quantity = 'A valid quantity is required';
+        if (!formData.budget || parseFloat(formData.budget) <= 0) newErrors.budget = 'A valid budget is required';
+        if (!formData.deadline) {
+            newErrors.deadline = 'Deadline is required';
+        } else {
+            const deadlineDate = new Date(formData.deadline);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (deadlineDate < today) newErrors.deadline = 'Deadline must be today or in the future';
+        }
         return newErrors;
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const validationErrors = validateForm();
         if (Object.keys(validationErrors).length > 0) {
@@ -62,7 +52,7 @@ const OrderForm = ({ campaign, onCreateOrder, onCancel }) => {
         }
 
         const newOrder = {
-            id: `O${Date.now()}`,
+            // ID is now handled by Firebase in the parent component
             campaignId: campaign.id,
             type: formData.type,
             quantity: parseInt(formData.quantity),
@@ -77,127 +67,109 @@ const OrderForm = ({ campaign, onCreateOrder, onCancel }) => {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="p-6 border-b border-slate-200">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/40 backdrop-blur-xl rounded-2xl shadow-lg border border-slate-300/70 max-w-2xl w-full max-h-[90vh] flex flex-col animate-fade-in-up">
+                {/* Header */}
+                <div className="p-6 border-b border-slate-300/70">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                        <h2 className="text-2xl font-bold text-slate-900">
                             Create New Order
                         </h2>
                         <button
                             onClick={onCancel}
-                            className="text-slate-400 hover:text-slate-600 transition-colors"
+                            className="w-8 h-8 rounded-full bg-white/40 hover:bg-white/60 flex items-center justify-center transition-colors"
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
                     </div>
-                    <p className="text-slate-600 mt-2">Campaign: {campaign.name}</p>
+                    <p className="text-slate-700 mt-1 text-sm">For Campaign: <span className="font-semibold">{campaign.name}</span></p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-6">
-                    {/* Order Type */}
+                {/* Form Body */}
+                <form onSubmit={handleSubmit} className="p-8 space-y-5 overflow-y-auto">
+                    {Object.values(errors).filter(e => e).length > 0 && (
+                         <div className="p-3 mb-4 rounded-xl bg-red-500/10 text-red-800 text-sm font-medium border border-red-500/20">
+                            Please fix the errors below.
+                        </div>
+                    )}
+                   
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Order Type *
-                        </label>
+                        <label className="block text-sm font-semibold text-slate-800 mb-2">Order Type *</label>
                         <select
                             name="type"
                             value={formData.type}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            className="w-full px-4 py-3 bg-white/50 border border-slate-300/70 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition"
                         >
                             <option value="">Select order type</option>
-                            {orderTypes.map(type => (
-                                <option key={type} value={type}>{type}</option>
-                            ))}
+                            {orderTypes.map(type => <option key={type} value={type}>{type}</option>)}
                         </select>
-                        {errors.type && <p className="text-red-600 text-sm mt-1">{errors.type}</p>}
+                        {errors.type && <p className="text-red-800 text-xs mt-1 font-medium">{errors.type}</p>}
                     </div>
 
-                    {/* Quantity */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-800 mb-2">Quantity *</label>
+                            <input
+                                type="number" name="quantity" value={formData.quantity}
+                                onChange={handleInputChange}
+                                className="w-full px-4 py-3 bg-white/50 border border-slate-300/70 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition"
+                                placeholder="e.g., 5" min="1"
+                            />
+                            {errors.quantity && <p className="text-red-800 text-xs mt-1 font-medium">{errors.quantity}</p>}
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-800 mb-2">Budget (₹) *</label>
+                            <input
+                                type="number" name="budget" value={formData.budget}
+                                onChange={handleInputChange}
+                                className="w-full px-4 py-3 bg-white/50 border border-slate-300/70 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition"
+                                placeholder="e.g., 10000" min="0" step="1"
+                            />
+                            {errors.budget && <p className="text-red-800 text-xs mt-1 font-medium">{errors.budget}</p>}
+                        </div>
+                    </div>
+                    
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Quantity *
-                        </label>
+                        <label className="block text-sm font-semibold text-slate-800 mb-2">Deadline *</label>
                         <input
-                            type="number"
-                            name="quantity"
-                            value={formData.quantity}
+                            type="date" name="deadline" value={formData.deadline}
                             onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                            placeholder="Enter quantity"
-                            min="1"
+                            className="w-full px-4 py-3 bg-white/50 border border-slate-300/70 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition"
                         />
-                        {errors.quantity && <p className="text-red-600 text-sm mt-1">{errors.quantity}</p>}
+                        {errors.deadline && <p className="text-red-800 text-xs mt-1 font-medium">{errors.deadline}</p>}
                     </div>
 
-                    {/* Budget */}
                     <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Budget (₹) *
-                        </label>
-                        <input
-                            type="number"
-                            name="budget"
-                            value={formData.budget}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                            placeholder="Enter budget amount"
-                            min="0"
-                            step="0.01"
-                        />
-                        {errors.budget && <p className="text-red-600 text-sm mt-1">{errors.budget}</p>}
-                    </div>
-
-                    {/* Deadline */}
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Deadline *
-                        </label>
-                        <input
-                            type="date"
-                            name="deadline"
-                            value={formData.deadline}
-                            onChange={handleInputChange}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        />
-                        {errors.deadline && <p className="text-red-600 text-sm mt-1">{errors.deadline}</p>}
-                    </div>
-
-                    {/* Notes */}
-                    <div>
-                        <label className="block text-sm font-semibold text-slate-700 mb-2">
-                            Additional Notes
-                        </label>
+                        <label className="block text-sm font-semibold text-slate-800 mb-2">Additional Notes</label>
                         <textarea
-                            name="notes"
-                            value={formData.notes}
-                            onChange={handleInputChange}
-                            rows={3}
-                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            name="notes" value={formData.notes}
+                            onChange={handleInputChange} rows={3}
+                            className="w-full px-4 py-3 bg-white/50 border border-slate-300/70 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent outline-none transition"
                             placeholder="Any specific requirements or instructions..."
                         />
                     </div>
+                </form>
 
-                    {/* Submit Buttons */}
-                    <div className="flex justify-end space-x-4 pt-6 border-t border-slate-200">
+                 {/* Footer */}
+                <div className="p-6 border-t border-slate-300/70 mt-auto">
+                    <div className="flex justify-end space-x-4">
                         <button
-                            type="button"
-                            onClick={onCancel}
-                            className="px-6 py-3 text-slate-600 hover:text-slate-800 transition-colors"
+                            type="button" onClick={onCancel}
+                            className="px-6 py-3 font-semibold text-slate-800 bg-white/40 hover:bg-white/60 rounded-lg transition-colors"
                         >
                             Cancel
                         </button>
                         <button
-                            type="submit"
-                            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all"
+                            type="button" onClick={handleSubmit} // Use onClick to prevent form double-submission
+                            className="px-6 py-3 font-semibold text-white bg-slate-800 hover:bg-slate-900 rounded-lg shadow-md transition-all"
                         >
                             Create Order
                         </button>
                     </div>
-                </form>
+                </div>
             </div>
         </div>
     );

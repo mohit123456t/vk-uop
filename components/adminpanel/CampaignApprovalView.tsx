@@ -1,111 +1,106 @@
 import React, { useState, useEffect } from 'react';
-import { collection, doc, updateDoc, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, onSnapshot, query, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { motion, AnimatePresence } from 'framer-motion';
-import CampaignDetailView from './CampaignDetailView'; // नया इम्पोर्ट
+import CampaignAssignmentView from './CampaignAssignmentView';
 
 const CampaignApprovalView = () => {
     const [campaigns, setCampaigns] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [viewCampaignId, setViewCampaignId] = useState(null); // बदला हुआ स्टेट
-    const [processingId, setProcessingId] = useState(null);
+    const [error, setError] = useState('');
+    const [selectedCampaign, setSelectedCampaign] = useState(null);
+    const [viewMode, setViewMode] = useState('list'); // 'list', 'assign'
 
     useEffect(() => {
         setLoading(true);
+        // FIX: The status should be 'Pending Approval' to match what the brand panel sets.
         const q = query(collection(db, 'campaigns'), where('status', '==', 'Pending Approval'));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const data = querySnapshot.docs.map(document => ({ ...document.data(), id: document.id }));
+
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setCampaigns(data);
             setLoading(false);
-        }, (error) => {
-            console.error("Error fetching campaigns:", error);
+        }, (err) => {
+            console.error("Error fetching campaigns:", err);
+            setError('Failed to load campaigns. Check Firestore security rules and index configuration.');
             setLoading(false);
         });
+
         return () => unsubscribe();
     }, []);
 
-    const handleReject = async (campaignId) => {
-        if (!campaignId) return;
-        if (!window.confirm('Are you sure you want to reject this campaign?')) return;
-        setProcessingId(campaignId);
+    const handleUpdateStatus = async (id, newStatus) => {
         try {
-            await updateDoc(doc(db, 'campaigns', campaignId), { status: 'Rejected' });
-        } catch (error) {
-            console.error(`Error rejecting campaign [${campaignId}]:`, error);
-        } finally {
-            setProcessingId(null);
+            const campaignRef = doc(db, "campaigns", id);
+            await updateDoc(campaignRef, { status: newStatus });
+        } catch (e) {
+            console.error("Error updating campaign status:", e);
+            alert(`Failed to update status.`);
         }
+    };
+    
+    const openAssignmentView = (campaign) => {
+        setSelectedCampaign(campaign);
+        setViewMode('assign');
+    };
+
+    const closeViews = () => {
+        setSelectedCampaign(null);
+        setViewMode('list');
     };
 
     if (loading) {
-        return <div className="flex justify-center items-center h-full"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
+        return <div className="text-center p-6">Loading pending campaigns...</div>;
+    }
+
+    if (error) {
+        return <div className="text-center p-6 text-red-500">{error}</div>;
     }
 
     return (
-        <motion.div className="space-y-6" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <h1 className="text-3xl font-bold text-slate-800 tracking-tighter">Campaign Approval</h1>
-
-            {campaigns.length === 0 ? (
-                <motion.div 
-                    className="bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 p-12 text-center"
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                >
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Pending Approvals</h3>
-                    <p className="text-slate-600">All campaigns have been reviewed.</p>
-                </motion.div>
-            ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {campaigns.map((campaign, index) => {
-                        const isProcessing = processingId === campaign.id;
-                        return (
-                            <motion.div 
-                                key={campaign.id} 
-                                className={`bg-white/40 backdrop-blur-xl rounded-2xl border border-slate-300/70 shadow-lg shadow-slate-200/80 overflow-hidden flex flex-col ${isProcessing ? 'opacity-50' : ''}`}
-                                initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                            >
-                               <div className="p-6 flex-grow">
-                                    <h3 className="text-xl font-semibold text-slate-900 mb-2">{campaign.name}</h3>
-                                    <div className="space-y-3 text-sm">
-                                        <div className="flex justify-between text-slate-700"><span>Budget:</span><span className="font-bold text-green-600">₹{campaign.budget?.toLocaleString()}</span></div>
-                                        <div className="flex justify-between text-slate-700"><span>Expected Reels:</span><span className="font-medium text-slate-800">{campaign.expectedReels}</span></div>
-                                        <div className="flex justify-between text-slate-700"><span>Deadline:</span><span className="font-medium text-slate-800">{new Date(campaign.deadline).toLocaleDateString()}</span></div>
-                                    </div>
-                                </div>
-                                <div className="bg-white/20 p-4 flex justify-end space-x-3">
-                                    <button
-                                        onClick={() => handleReject(campaign.id)}
-                                        disabled={isProcessing}
-                                        className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-500/10 rounded-lg hover:bg-red-500/20 disabled:opacity-70 disabled:cursor-wait"
-                                    >
-                                        {isProcessing ? 'Processing...' : 'Reject'}
-                                    </button>
-                                    <button
-                                        onClick={() => setViewCampaignId(campaign.id)} // बदला हुआ एक्शन
-                                        disabled={isProcessing}
-                                        className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-wait shadow-lg shadow-indigo-500/20"
-                                    >
-                                        Review & Assign
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )
-                    })}
-                </div>
-            )}
-
-            {/* बदला हुआ सेक्शन: CampaignDetailView का उपयोग */}
+        <div className="p-1">
             <AnimatePresence>
-                {viewCampaignId && (
-                    <CampaignDetailView 
-                        campaignId={viewCampaignId} 
-                        onClose={() => setViewCampaignId(null)} 
+                {viewMode === 'list' && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                         <h2 className="text-2xl font-bold text-slate-800 mb-6">Campaign Approval Queue</h2>
+                         {campaigns.length > 0 ? (
+                            <div className="space-y-4">
+                                {campaigns.map(campaign => (
+                                    <motion.div 
+                                        key={campaign.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="bg-white/60 p-5 rounded-xl border border-white/40 shadow-sm flex items-center justify-between"
+                                    >
+                                        <div>
+                                            <h3 className="font-bold text-lg text-slate-800">{campaign.name}</h3>
+                                            <p className="text-sm text-slate-600">Budget: ₹{campaign.budget.toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex items-center space-x-3">
+                                            <button onClick={() => handleUpdateStatus(campaign.id, 'Rejected')} className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-100/70 hover:bg-red-200/70 rounded-lg">Reject</button>
+                                            <button onClick={() => handleUpdateStatus(campaign.id, 'Approved')} className="px-4 py-2 text-sm font-semibold text-green-600 bg-green-100/70 hover:bg-green-200/70 rounded-lg">Approve</button>
+                                            <button onClick={() => openAssignmentView(campaign)} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md">Review & Assign</button>
+                                        </div>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-slate-500 py-10">No pending campaigns to review.</p>
+                        )}
+                    </motion.div>
+                )}
+
+                {viewMode === 'assign' && selectedCampaign && (
+                    <CampaignAssignmentView 
+                        campaignId={selectedCampaign.id} 
+                        onClose={closeViews} 
                     />
                 )}
+
             </AnimatePresence>
-        </motion.div>
+        </div>
     );
 };
 
