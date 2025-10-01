@@ -1,0 +1,8 @@
+[
+  {
+    "origin": ["https://5173-firebase-vk-uop-1759315642051.cluster-euie3bjlbvhliv5fpqv5ofgi46.cloudworkstations.dev", "http://localhost:3000"],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": ["Content-Type", "x-goog-resumable"],
+    "maxAgeSeconds": 3600
+  }
+]

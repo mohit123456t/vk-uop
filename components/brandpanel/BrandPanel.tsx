@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, addDoc, setDoc, doc, getDoc, onSnapshot, query, where, updateDoc } from 'firebase/firestore';
 import { db } from '../../services/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth } from '../../services/firebase';
 import Logo from '../Logo';
@@ -30,8 +30,12 @@ const NavItem = ({ icon, label, active, onClick }) => (
     </button>
 );
 
-const BrandPanel = () => {
+const BrandPanel = ({ viewBrandId: propViewBrandId, onBack }: { viewBrandId?: string; onBack?: () => void }) => {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const paramViewBrandId = searchParams.get('viewBrandId');
+    const viewBrandId = propViewBrandId || paramViewBrandId;
+    const isViewMode = !!viewBrandId;
     const [user, setUser] = useState<any>(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -97,12 +101,16 @@ const BrandPanel = () => {
     };
 
     const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            navigate('/');
-        } catch (error) {
-            console.error('Logout error:', error);
-            navigate('/');
+        if (isViewMode) {
+            window.close(); // or navigate('/admin')
+        } else {
+            try {
+                await signOut(auth);
+                navigate('/');
+            } catch (error) {
+                console.error('Logout error:', error);
+                navigate('/');
+            }
         }
     };
 
@@ -133,14 +141,15 @@ const BrandPanel = () => {
     }, [selectedCampaign]);
     
     useEffect(() => {
-        if (!user?.uid) {
+        const currentBrandId = viewBrandId || user?.uid;
+        if (!currentBrandId) {
             setProfile({});
             setCampaigns([]);
             setOrders([]);
             return;
         }
 
-        const profileUnsubscribe = onSnapshot(doc(db, 'users', user.uid), (doc) => {
+        const profileUnsubscribe = onSnapshot(doc(db, 'users', currentBrandId), (doc) => {
             if (doc.exists()) {
                 setProfile(doc.data());
             } else {
@@ -148,24 +157,27 @@ const BrandPanel = () => {
             }
         }, (error) => console.error('Error in profile listener:', error));
 
-        const campaignsQuery = query(collection(db, 'campaigns'), where('brandId', '==', user.uid));
+        const campaignsQuery = query(collection(db, 'campaigns'), where('brandId', '==', currentBrandId));
         const campaignsUnsubscribe = onSnapshot(campaignsQuery, (snapshot) => {
-            const campaignsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const campaignsList = snapshot.docs.map(doc => {
+                const data = doc.data();
+                return { id: doc.id, ...data, reels: Array.isArray(data.reels) ? data.reels : [] };
+            });
             setCampaigns(campaignsList);
         }, (error) => console.error('Error in campaign listener:', error));
 
-        const ordersQuery = query(collection(db, 'orders'), where('brandId', '==', user.uid));
+        const ordersQuery = query(collection(db, 'orders'), where('brandId', '==', currentBrandId));
         const ordersUnsubscribe = onSnapshot(ordersQuery, (snapshot) => {
             const ordersList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             setOrders(ordersList);
         }, (error) => console.error('Error in order listener:', error));
-        
+
         return () => {
             profileUnsubscribe();
             campaignsUnsubscribe();
             ordersUnsubscribe();
         };
-    }, [user?.uid]);
+    }, [user?.uid, viewBrandId]);
 
     const handleSelectCampaign = (campaign) => {
         setSelectedCampaign(campaign);

@@ -6,8 +6,10 @@ import {
   createUserWithEmailAndPassword,
   signInWithPopup,
   GoogleAuthProvider,
+  FacebookAuthProvider,
   signOut,
-  User
+  User,
+  linkWithPopup
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot, collection, query, where, getDocs, DocumentData, Firestore, getFirestore } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
@@ -151,6 +153,37 @@ class AuthService {
       return newUserProfile;
     }
   }
+
+  public async linkWithFacebook(): Promise<string> {
+      const { auth } = await getFirebaseServices();
+      const provider = new FacebookAuthProvider();
+      
+      // Force re-authentication and re-request of permissions
+      provider.setCustomParameters({
+          'auth_type': 'rerequest'
+      });
+
+      provider.addScope('instagram_basic');
+      provider.addScope('instagram_content_publish');
+      provider.addScope('pages_show_list');
+      provider.addScope('pages_read_engagement');
+      provider.addScope('business_management');
+
+      if (!auth.currentUser) {
+          throw new Error("No user is currently signed in to link a Facebook account.");
+      }
+
+      const result = await linkWithPopup(auth.currentUser, provider);
+      const credential = FacebookAuthProvider.credentialFromResult(result);
+      
+      if (!credential || !credential.accessToken) {
+          throw new Error("Could not retrieve Facebook access token.");
+      }
+      
+      // This is the short-lived user access token
+      return credential.accessToken;
+  }
+
 
   public async registerUser(email: string, password: string, additionalData: Omit<UserProfile, 'uid' | 'email'>): Promise<void> {
     const { auth, db } = await getFirebaseServices();

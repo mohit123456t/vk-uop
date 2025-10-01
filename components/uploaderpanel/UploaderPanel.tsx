@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion'; // 👈 Added for animations
+import { motion, AnimatePresence } from 'framer-motion';
 import Logo from '../Logo';
 import { ICONS } from '@/constants.tsx';
 import authService from '../../services/authService';
 
 // Views
+import ApiKeyManagementView from './ApiKeyManagementView';
 import DashboardView from './DashboardView';
 import AssignedTasksView from './AssignedTasksView';
 import AccountsView from './AccountsView';
@@ -13,34 +14,28 @@ import CommunicationView from './CommunicationView';
 import EarningsView from './EarningsView';
 import UserProfileView from './UserProfileView';
 
-// 🧩 NavItem Component — White Theme, Elegant Hover & Active States
+// THEME UPDATE: NavItem को ग्लास थीम के लिए स्टाइल किया गया है
 const NavItem = ({ icon, label, active, onClick, ...props }) => (
     <motion.button
         {...props}
         onClick={onClick}
         className={`flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200 ${
             active
-                ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-blue-600'
+                ? 'bg-white/40 text-indigo-700 font-semibold'
+                : 'text-slate-700 hover:bg-white/20'
         }`}
-        whileHover={{ x: 6 }}
+        whileHover={{ x: active ? 0 : 5 }}
         whileTap={{ scale: 0.98 }}
     >
-        <span className={`mr-3 ${active ? 'text-blue-600' : ''}`}>{icon}</span>
+        <span className={`mr-3 transition-colors ${active ? 'text-indigo-600' : 'text-slate-600'}`}>{icon}</span>
         {label}
     </motion.button>
 );
 
-// 🖥️ Main Uploader Panel — WHITE GOD-MODE ACTIVATED
 const UploaderPanel = () => {
     const navigate = useNavigate();
 
-    // 💾 Persist active view in localStorage
-    const [activeView, setActiveView] = useState(() => {
-        const saved = localStorage.getItem('uploaderActiveView');
-        return saved || 'dashboard';
-    });
-
+    const [activeView, setActiveView] = useState(() => localStorage.getItem('uploaderActiveView') || 'dashboard');
     const [userProfile, setUserProfile] = useState<any>(null);
 
     useEffect(() => {
@@ -53,54 +48,40 @@ const UploaderPanel = () => {
                 setUserProfile(currentAuthState.userProfile);
             }
         });
-
         return () => unsubscribe();
     }, []);
 
-    // 🧭 Navigation Items
     const navItems = [
         { id: 'dashboard', label: 'Dashboard', icon: ICONS.layout },
         { id: 'assigned-tasks', label: 'Assigned Tasks', icon: ICONS.clipboard },
         { id: 'accounts', label: 'Accounts', icon: ICONS.users },
         { id: 'communication', label: 'Messages', icon: ICONS.message },
         { id: 'earnings', label: 'Earnings', icon: ICONS.currencyRupee },
+        { id: 'api-keys', label: 'API Keys', icon: ICONS.shieldCheck },
     ];
+    const secondaryNavItems = [ { id: 'my-profile', label: 'My Profile', icon: ICONS.userCircle } ];
 
-    const secondaryNavItems = [
-        { id: 'my-profile', label: 'My Profile', icon: ICONS.userCircle },
-    ];
-
-    // 🖼️ Render Active View
     const renderView = () => {
         switch (activeView) {
-            case 'assigned-tasks':
-                return <AssignedTasksView />;
-            case 'accounts':
-                return <AccountsView />;
-            case 'communication':
-                return <CommunicationView />;
-            case 'earnings':
-                return <EarningsView />;
-            case 'my-profile':
-                return <UserProfileView />;
+            case 'assigned-tasks': return <AssignedTasksView />;
+            case 'accounts': return <AccountsView />;
+            case 'communication': return <CommunicationView />;
+            case 'earnings': return <EarningsView />;
+            case 'my-profile': return <UserProfileView />;
+            case 'api-keys': return <ApiKeyManagementView />;
             case 'dashboard':
-            default:
-                return <DashboardView />;
+            default: return <DashboardView />;
         }
     };
 
-
-
     return (
-        <div className="flex h-screen bg-slate-50 font-sans text-slate-800">
-            {/* 👈 WHITE GOD-MODE SIDEBAR */}
-            <aside className="w-64 flex-shrink-0 bg-white text-slate-800 flex flex-col no-scrollbar shadow-lg border-r border-slate-200">
-                {/* 🔷 Logo Section */}
-                <div className="h-16 flex items-center px-6 border-b border-slate-100 flex-shrink-0">
+        // THEME UPDATE: पूरे पैनल को "iOS Wallpaper" बैकग्राउंड दिया गया है
+        <div className="flex h-screen font-sans bg-slate-200 bg-gradient-to-br from-white/30 via-transparent to-transparent">
+            {/* THEME UPDATE: साइडबार को ग्लास पैनल बनाया गया है */}
+            <aside className="w-64 flex-shrink-0 bg-white/40 backdrop-blur-xl text-slate-800 flex flex-col no-scrollbar shadow-2xl border-r border-slate-300/70">
+                <div className="h-16 flex items-center px-6 border-b border-slate-300/70 flex-shrink-0">
                     <Logo />
                 </div>
-
-                {/* 🧭 Primary Navigation — Animated Entry */}
                 <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
                     {navItems.map((item, index) => (
                         <motion.div
@@ -118,9 +99,7 @@ const UploaderPanel = () => {
                         </motion.div>
                     ))}
                 </nav>
-
-                {/* 🛠️ Secondary Nav + Logout */}
-                <div className="px-4 py-4 border-t border-slate-100 flex-shrink-0 space-y-3">
+                <div className="px-4 py-4 border-t border-slate-300/70 flex-shrink-0 space-y-3">
                     {secondaryNavItems.map((item, index) => (
                         <motion.div
                             key={item.id}
@@ -136,12 +115,10 @@ const UploaderPanel = () => {
                             />
                         </motion.div>
                     ))}
-
-                    {/* 🚪 Logout — Classy Red Accent */}
                     <motion.button
                         onClick={() => navigate('/')}
-                        className="flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 transition-all"
-                        whileHover={{ x: 6 }}
+                        className="flex items-center w-full text-left px-4 py-2.5 text-sm font-medium rounded-lg text-red-600 hover:bg-red-500/10 hover:text-red-700 transition-all"
+                        whileHover={{ x: 5 }}
                         whileTap={{ scale: 0.98 }}
                     >
                         <span className="mr-3">{ICONS.logout}</span>
@@ -150,13 +127,26 @@ const UploaderPanel = () => {
                 </div>
             </aside>
 
-            {/* ➡️ Main Content Area */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 flex-shrink-0 shadow-sm">
+                {/* THEME UPDATE: हेडर को ग्लास स्टाइल दिया गया है */}
+                <header className="h-16 bg-white/60 backdrop-blur-lg border-b border-slate-300/70 flex items-center justify-between px-6 flex-shrink-0">
                     <h1 className="text-xl font-bold text-slate-900 capitalize">Uploader Panel</h1>
                     <div className="font-semibold text-slate-700">{userProfile?.name || 'User'}</div>
                 </header>
-                <main className="flex-1 overflow-y-auto bg-slate-50 p-8">{renderView()}</main>
+                {/* THEME UPDATE: मेन एरिया से बैकग्राउंड हटाया गया है ताकि वॉलपेपर दिखे */}
+                <main className="flex-1 overflow-y-auto p-8">
+                     <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeView}
+                            initial={{ opacity: 0, y: 15 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -15 }}
+                            transition={{ duration: 0.25 }}
+                        >
+                            {renderView()}
+                        </motion.div>
+                    </AnimatePresence>
+                </main>
             </div>
         </div>
     );

@@ -78,12 +78,12 @@ const AnalyticsView = ({ campaigns = [] }) => {
                                     </td>
                                 </tr>
                             ) : (
-                                campaigns.map(campaign => {
-                                    const totalEngagement = campaign.reels ? campaign.reels.reduce((sum, reel) => sum + (reel.likes || 0) + (reel.comments || 0), 0) : 0;
-                                    const lastUpdated = campaign.reels && campaign.reels.length > 0 ?
+                                campaigns.map((campaign, index) => {
+                                    const totalEngagement = Array.isArray(campaign.reels) ? campaign.reels.reduce((sum, reel) => sum + (reel.likes || 0) + (reel.comments || 0), 0) : 0;
+                                    const lastUpdated = Array.isArray(campaign.reels) && campaign.reels.length > 0 ?
                                         new Date(Math.max(...campaign.reels.map(r => new Date(r.uploadedAt || 0)))).toLocaleDateString() : 'N/A';
                                     return (
-                                        <tr key={campaign.id} className="border-b border-slate-300/70">
+                                        <tr key={`campaign-${index}`} className="border-b border-slate-300/70">
                                             <th scope="row" className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap">{campaign.name}</th>
                                             <td className="px-6 py-4"><StatusBadge status={campaign.status} /></td>
                                             <td className="px-6 py-4">{(campaign.views || 0).toLocaleString()}</td>

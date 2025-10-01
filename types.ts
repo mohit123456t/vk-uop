@@ -1,4 +1,4 @@
-export interface Campaign {
+ export interface Campaign {
     id: string;
     name: string;
     status: string;
@@ -12,6 +12,10 @@ export interface Campaign {
     endDate?: string;
     imageUrl?: string;
     assignedUploader?: string;
+    assignedTo?: string;
+    assignedVideoEditor?: string;
+    assignedScriptWriter?: string;
+    assignedThumbnailMaker?: string;
 }
 
 export interface Reel {
@@ -20,6 +24,9 @@ export interface Reel {
     likes: number;
     status: string;
     uploadedAt: string;
+    comments?: number;
+    shares?: number;
+    saves?: number;
 }
 
 export interface Order {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '../../services/firebase';
 import { collection, getDocs, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
 import { ICONS } from '../../constants';
-import authService from '../../services/authService';
+import authService, { UserProfile } from '../../services/authService';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const StaffCard = ({ name, count, icon, onClick, gradient }) => (
@@ -49,7 +50,7 @@ const StaffManagementView = () => {
             staffCategoriesList.forEach(cat => { staffByRole[cat.name] = []; });
 
             usersSnapshot.forEach(doc => {
-                const user = { id: doc.id, ...doc.data() };
+                const user: any = { id: doc.id, ...doc.data() };
                 const category = staffCategoriesList.find(cat => cat.role === user.role);
                 if (category) {
                     staffByRole[category.name].push(user);
@@ -67,17 +68,41 @@ const StaffManagementView = () => {
         fetchStaff();
     }, [fetchStaff]);
     
-    const handleAddStaff = async () => { 
-      // Implement add staff logic here, then refetch
-      setIsAddModalOpen(false);
-      fetchStaff();
+    const handleAddStaff = async () => {
+        try {
+            await authService.registerUser(newStaff.email, newStaff.password, {
+                name: newStaff.name,
+                role: newStaff.role,
+                isActive: true,
+                lastLoginAt: null,
+                createdAt: new Date()
+            });
+            setNewStaff({ name: '', email: '', password: '', role: '' });
+            setIsAddModalOpen(false);
+            fetchStaff();
+        } catch (error) {
+            console.error('Error adding staff:', error);
+            alert('Failed to add staff. Please try again.');
+        }
     };
-    const handleDeactivateReactivateStaff = async (staff, makeActive) => { 
-        // Implement staff status change logic here, then refetch
-        fetchStaff();
+    const handleDeactivateReactivateStaff = async (staff: any, makeActive: boolean) => {
+        try {
+            await updateDoc(doc(db, 'users', staff.id), { isActive: makeActive });
+            fetchStaff();
+        } catch (error) {
+            console.error('Error updating staff status:', error);
+            alert('Failed to update staff status. Please try again.');
+        }
     };
-    const handleResetPassword = async (email) => { 
-      // Implement password reset logic here
+    const handleResetPassword = async (email: string) => {
+        try {
+            const auth = getAuth();
+            await sendPasswordResetEmail(auth, email);
+            alert(`Password reset email sent to ${email}`);
+        } catch (error) {
+            console.error('Error sending password reset email:', error);
+            alert('Failed to send password reset email. Please try again.');
+        }
     };
 
     const staffCategories = staffCategoriesList.map(category => ({

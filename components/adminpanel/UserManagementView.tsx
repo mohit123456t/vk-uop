@@ -73,7 +73,7 @@ const AddBrandForm = ({ onClose, onUserAdded }) => {
     );
 };
 
-const UserManagementView = () => {
+const UserManagementView = ({ onViewBrand }) => {
     const [showAddBrandForm, setShowAddBrandForm] = useState(false);
     const [brands, setBrands] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -93,6 +93,11 @@ const UserManagementView = () => {
 
     const handleUserAdded = () => {
         fetchBrands(); // Refresh list after adding a new brand
+    };
+
+    const handleViewBrandDetails = (brandId) => {
+        // Navigate to brand details page in read-only mode
+        onViewBrand(brandId);
     };
 
     return (
@@ -133,6 +138,7 @@ const UserManagementView = () => {
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Brand Name</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Email</th>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Mobile</th>
+                                    <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Details</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-300/50">
@@ -142,6 +148,14 @@ const UserManagementView = () => {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brand.brandName}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brand.email}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{brand.mobile}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
+                                            <button
+                                                onClick={() => handleViewBrandDetails(brand.id)}
+                                                className="px-3 py-1 text-indigo-600 hover:underline"
+                                            >
+                                                View Details
+                                            </button>
+                                        </td>
                                     </tr>
                                 ))}
                             </tbody>

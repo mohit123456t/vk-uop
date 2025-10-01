@@ -31,16 +31,20 @@ const PrivateRoute: React.FC<PrivateRouteProps> = ({ children, requiredRole }) =
     );
   }
 
-  if (!authState.isAuthenticated) {
-    return <Navigate to="/role-login" replace />;
+  if (authState.isLoading) {
+    return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div></div>;
   }
 
-  if (requiredRole && authState.userProfile && authState.userProfile.role !== requiredRole) {
-    // Special case for Super Admin
-    if (authState.userProfile.role === 'super_admin' && requiredRole === 'super_admin') {
+  if (!authState.isAuthenticated) {
+    return <Navigate to="/portal" replace />;
+  }
+
+  if (requiredRole && authState.userProfile) {
+    const userRole = authState.userProfile.role;
+    if (userRole === requiredRole || userRole === 'super_admin') {
       return children;
     }
-    return <Navigate to="/role-login" replace />;
+    return <Navigate to="/portal" replace />;
   }
 
   return children;

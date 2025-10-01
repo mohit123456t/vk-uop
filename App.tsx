@@ -8,7 +8,7 @@ import UploaderPanel from './components/uploaderpanel/UploaderPanel';
 import ScriptWriterPanel from './components/scriptwriterpanel/ScriptWriterPanel';
 import VideoEditorPanel from './components/videoeditorpanel/VideoEditorPanel';
 import ThumbnailMakerPanel from './components/thumbnailmakerpanel/ThumbnailMakerPanel';
-import InstagramCallback from './components/InstagramCallback';
+
 import PrivateRoute from './components/PrivateRoute';
 import RoleBasedPortalLogin from './components/RoleBasedPortalLogin';
 
@@ -30,14 +30,13 @@ const App: React.FC = () => {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/portal" element={<RoleBasedPortalLogin />} />
-          <Route path="/brand" element={<BrandPanel onNavigate={() => {}} />} />
-          <Route path="/admin" element={<AdminPanel onNavigate={() => {}} />} />
+          <Route path="/brand" element={<PrivateRoute requiredRole="brand"><BrandPanel /></PrivateRoute>} />
+          <Route path="/admin" element={<PrivateRoute requiredRole="admin"><AdminPanel /></PrivateRoute>} />
           <Route path="/super-admin" element={<SuperAdminPanel />} />
-          <Route path="/uploader" element={<UploaderPanel onNavigate={() => {}} />} />
-          <Route path="/script-writer" element={<ScriptWriterPanel onNavigate={() => {}} />} />
-          <Route path="/video-editor" element={<VideoEditorPanel onNavigate={() => {}} />} />
-          <Route path="/thumbnail-maker" element={<ThumbnailMakerPanel onNavigate={() => {}} />} />
-          <Route path="/instagram-callback" element={<InstagramCallback />} />
+          <Route path="/uploader" element={<PrivateRoute requiredRole="uploader"><UploaderPanel /></PrivateRoute>} />
+          <Route path="/script-writer" element={<PrivateRoute requiredRole="script_writer"><ScriptWriterPanel /></PrivateRoute>} />
+          <Route path="/video-editor" element={<PrivateRoute requiredRole="video_editor"><VideoEditorPanel /></PrivateRoute>} />
+          <Route path="/thumbnail-maker" element={<PrivateRoute requiredRole="thumbnail_maker"><ThumbnailMakerPanel /></PrivateRoute>} />
         </Routes>
       </div>
     </Router>

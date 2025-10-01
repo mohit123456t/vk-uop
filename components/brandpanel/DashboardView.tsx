@@ -54,12 +54,12 @@ const DashboardView = ({ campaigns = [], profile }) => {
     const pendingCampaigns = campaigns.filter((c) => c.status === 'Paused' || c.status === 'Pending').length;
     const totalViews = campaigns.reduce((sum, campaign) => sum + (campaign.views || 0), 0);
     const totalReels = campaigns.reduce((sum, campaign) => sum + (campaign.reelsCount || 0), 0);
-    const uploadedReels = campaigns.reduce((sum, campaign) => sum + (campaign.reels?.filter((r) => r.status === 'Live').length || 0), 0);
+    const uploadedReels = campaigns.reduce((sum, campaign) => sum + (Array.isArray(campaign.reels) ? campaign.reels.filter((r) => r.status === 'Live').length : 0), 0);
     const pendingReels = totalReels - uploadedReels;
-    const totalLikes = campaigns.reduce((sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.likes || 0), 0) || 0), 0);
-    const totalComments = campaigns.reduce((sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.comments || 0), 0) || 0), 0);
-    const totalShares = campaigns.reduce((sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.shares || 0), 0) || 0), 0);
-    const totalSaves = campaigns.reduce((sum, campaign) => sum + (campaign.reels?.reduce((rSum, reel) => rSum + (reel.saves || 0), 0) || 0), 0);
+    const totalLikes = campaigns.reduce((sum, campaign) => sum + (Array.isArray(campaign.reels) ? campaign.reels.reduce((rSum, reel) => rSum + (reel.likes || 0), 0) : 0), 0);
+    const totalComments = campaigns.reduce((sum, campaign) => sum + (Array.isArray(campaign.reels) ? campaign.reels.reduce((rSum, reel) => rSum + (reel.comments || 0), 0) : 0), 0);
+    const totalShares = campaigns.reduce((sum, campaign) => sum + (Array.isArray(campaign.reels) ? campaign.reels.reduce((rSum, reel) => rSum + (reel.shares || 0), 0) : 0), 0);
+    const totalSaves = campaigns.reduce((sum, campaign) => sum + (Array.isArray(campaign.reels) ? campaign.reels.reduce((rSum, reel) => rSum + (reel.saves || 0), 0) : 0), 0);
     const engagementRate = totalViews > 0 ? ((totalLikes + totalComments + totalShares + totalSaves) / totalViews * 100).toFixed(1) : 0;
     const promisedViews = totalCampaigns * 50000;
     const viewsProgress = promisedViews > 0 ? (totalViews / promisedViews * 100).toFixed(1) : 0;

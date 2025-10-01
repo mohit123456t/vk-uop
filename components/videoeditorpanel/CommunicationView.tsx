@@ -23,7 +23,7 @@ interface Message {
     isReport?: boolean;
 }
 
-// Modals (same as before, no changes needed)
+// Modals
 const ShareMediaModal = ({ isOpen, onClose, onShare }) => {
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
     const [caption, setCaption] = useState('');
@@ -204,15 +204,12 @@ const CommunicationView = () => {
         fetchTasks();
     }, [userProfile]);
 
-
-
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages]);
 
-    // ✅ NEW FEATURE: START NEW CHAT
     const startNewChat = () => {
-        const newId = `V${(parseInt(tasks[0].id.slice(1)) + 1).toString().padStart(3, '0')}`;
+        const newId = `V${(parseInt(tasks[0]?.id.slice(1) || '0') + 1).toString().padStart(3, '0')}`;
         const newTask: Task = {
             id: newId,
             campaign: 'Untitled Campaign',
@@ -224,7 +221,7 @@ const CommunicationView = () => {
         setSelectedTask(newTask);
         setMessages([
             {
-                id: 1,
+                id: Date.now(),
                 sender: 'System',
                 message: `👋 Welcome to your new chat!\nParticipants: Video Editor, Script Writer, Brand Manager\nStart collaborating!`,
                 timestamp: new Date().toLocaleString(),
@@ -237,7 +234,7 @@ const CommunicationView = () => {
         if (!message.trim() || !selectedTask) return;
 
         const newMessage: Message = {
-            id: messages.length + 1,
+            id: Date.now(),
             sender: 'Video Editor',
             message: message,
             timestamp: new Date().toLocaleString(),
@@ -250,7 +247,7 @@ const CommunicationView = () => {
 
     const handleShareMedia = (files: File[], caption: string) => {
         const newMessage: Message = {
-            id: messages.length + 1,
+            id: Date.now(),
             sender: 'Video Editor',
             message: caption || 'Shared media files',
             timestamp: new Date().toLocaleString(),
@@ -266,7 +263,7 @@ const CommunicationView = () => {
 
     const handleSubmitReport = (reportData: { subject: string; description: string; priority: string }) => {
         const newMessage: Message = {
-            id: messages.length + 1,
+            id: Date.now(),
             sender: 'Video Editor',
             message: `📋 Report Submitted: ${reportData.subject}\nPriority: ${reportData.priority}\n${reportData.description}`,
             timestamp: new Date().toLocaleString(),
@@ -305,7 +302,6 @@ const CommunicationView = () => {
                     <p className="text-sm text-slate-600">Manage your project chats</p>
                 </div>
 
-                {/* NEW BUTTON */}
                 <div className="px-4 py-3 border-b border-slate-200">
                     <button
                         onClick={startNewChat}
@@ -343,7 +339,7 @@ const CommunicationView = () => {
                                 <div className="flex -space-x-1">
                                     {task.participants.slice(0, 3).map((participant, index) => (
                                         <div
-                                            key={index}
+                                            key={`${participant}-${index}`}
                                             className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center text-xs border border-white"
                                             title={participant}
                                         >
@@ -376,8 +372,8 @@ const CommunicationView = () => {
                                     <p className="text-sm text-slate-600">{selectedTask.brand}</p>
                                 </div>
                                 <div className="flex items-center space-x-2">
-                                    {selectedTask.participants.map((participant, index) => (
-                                        <div key={index} className="flex items-center space-x-1 text-sm text-slate-600">
+                                    {selectedTask.participants.map(participant => (
+                                        <div key={participant} className="flex items-center space-x-1 text-sm text-slate-600">
                                             <span>{getSenderIcon(
                                                 participant === 'Brand Manager' ? 'brand' :
                                                 participant === 'Script Writer' ? 'writer' :
@@ -411,7 +407,7 @@ const CommunicationView = () => {
                                                 <div className="mt-2 space-y-1">
                                                     <p className="text-xs text-slate-600 font-medium">📎 Attachments:</p>
                                                     {msg.media.map((file, index) => (
-                                                        <div key={index} className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                                                        <div key={`${file.name}-${index}`} className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
                                                             {file.type.startsWith('image/') ? '🖼️' : '🎥'} {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
                                                         </div>
                                                     ))}

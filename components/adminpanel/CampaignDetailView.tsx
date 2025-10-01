@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { ICONS } from '../../constants';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -49,47 +49,74 @@ const CampaignDetailView = ({ campaignId, onClose }) => {
 
     const staffRoles = ['video_editor', 'uploader', 'script_writer', 'thumbnail_maker'];
 
-    const fetchCampaignDetails = useCallback(async () => {
+    const fetchCampaignDetails = useCallback(() => {
         if (!campaignId) return;
         setLoading(true);
-        try {
-            const campaignDoc = await getDoc(doc(db, 'campaigns', campaignId));
-            if (!campaignDoc.exists()) throw new Error("Campaign not found");
-            
+
+        // Real-time listener for campaign
+        const campaignUnsub = onSnapshot(doc(db, 'campaigns', campaignId), async (campaignDoc) => {
+            if (!campaignDoc.exists()) {
+                setLoading(false);
+                return;
+            }
+
             const campaignData = { id: campaignDoc.id, ...campaignDoc.data() };
             setCampaign(campaignData);
 
-            // Fetch assigned staff details
-            const assignments = campaignData.assignedStaff || [];
-            const staffEmails = assignments.map(a => a.email).filter(Boolean);
+            // Build assigned staff from assignedTo etc.
+            const assignments = [
+                { role: 'uploader', uid: campaignData.assignedTo },
+                { role: 'video_editor', uid: campaignData.assignedVideoEditor },
+                { role: 'script_writer', uid: campaignData.assignedScriptWriter },
+                { role: 'thumbnail_maker', uid: campaignData.assignedThumbnailMaker },
+            ].filter(a => a.uid);
+
+            // Fetch staff details
             let staffData = {};
-            if (staffEmails.length > 0) {
-                const usersQuery = query(collection(db, 'users'), where('email', 'in', staffEmails));
+            if (assignments.length > 0) {
+                const uids = assignments.map(a => a.uid);
+                // Since Firestore 'in' supports up to 10, and we have 4, ok
+                const usersQuery = query(collection(db, 'users'), where('__name__', 'in', uids));
                 const usersSnapshot = await getDocs(usersQuery);
-                usersSnapshot.forEach(doc => { staffData[doc.data().email] = doc.data().name; });
+                usersSnapshot.forEach(doc => { staffData[doc.id] = doc.data(); });
             }
-            setAssignedStaff(assignments.map(a => ({ ...a, name: staffData[a.email] || 'Unknown' })));
+            setAssignedStaff(assignments.map(a => ({
+                ...a,
+                name: staffData[a.uid]?.name || 'Unknown',
+                email: staffData[a.uid]?.email || ''
+            })));
 
-            // Fetch all related work items
-            const [scriptsSnap, videosSnap, thumbnailsSnap, uploadsSnap] = await Promise.all([
-                getDocs(query(collection(db, 'script_tasks'), where('campaignId', '==', campaignId))),
-                getDocs(query(collection(db, 'video_edit_tasks'), where('campaignId', '==', campaignId))),
-                getDocs(query(collection(db, 'thumbnail_tasks'), where('campaignId', '==', campaignId))),
-                getDocs(query(collection(db, 'reels'), where('campaignId', '==', campaignId)))
-            ]);
-
-            setWorkItems({
-                scripts: scriptsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                videos: videosSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                thumbnails: thumbnailsSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-                uploads: uploadsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-            });
-
-        } catch (error) {
-            console.error("Error fetching campaign details:", error);
-        } finally {
             setLoading(false);
-        }
+        }, (error) => {
+            console.error("Error fetching campaign:", error);
+            setLoading(false);
+        });
+
+        // Real-time listeners for work items
+        const scriptsUnsub = onSnapshot(query(collection(db, 'script_tasks'), where('campaignId', '==', campaignId)), (snap) => {
+            setWorkItems(prev => ({ ...prev, scripts: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+        });
+
+        const videosUnsub = onSnapshot(query(collection(db, 'video_edit_tasks'), where('campaignId', '==', campaignId)), (snap) => {
+            setWorkItems(prev => ({ ...prev, videos: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+        });
+
+        const thumbnailsUnsub = onSnapshot(query(collection(db, 'thumbnail_tasks'), where('campaignId', '==', campaignId)), (snap) => {
+            setWorkItems(prev => ({ ...prev, thumbnails: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+        });
+
+        const uploadsUnsub = onSnapshot(query(collection(db, 'reels'), where('campaignId', '==', campaignId)), (snap) => {
+            setWorkItems(prev => ({ ...prev, uploads: snap.docs.map(d => ({ id: d.id, ...d.data() })) }));
+        });
+
+        // Cleanup function
+        return () => {
+            campaignUnsub();
+            scriptsUnsub();
+            videosUnsub();
+            thumbnailsUnsub();
+            uploadsUnsub();
+        };
     }, [campaignId]);
 
     useEffect(() => { fetchCampaignDetails(); }, [fetchCampaignDetails]);
@@ -162,7 +189,7 @@ const CampaignDetailView = ({ campaignId, onClose }) => {
                     <div className="bg-white/30 border border-slate-300/50 rounded-xl p-6">
                         <h3 className="text-xl font-bold text-slate-800 mb-4">Campaign Brief</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                            <InfoPill icon={ICONS.briefcase} label="Brand Name" value={campaign.brandName} />
+                            <InfoPill icon={ICONS.brief} label="Brand Name" value={campaign.brandName} />
                             <InfoPill icon={ICONS.money} label="Budget" value={`₹${campaign.budget?.toLocaleString()}`} />
                             <InfoPill icon={ICONS.video} label="Expected Reels" value={campaign.expectedReels} />
                             <InfoPill icon={ICONS.calendar} label="Deadline" value={new Date(campaign.deadline).toLocaleDateString()} />

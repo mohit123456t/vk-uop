@@ -3,6 +3,7 @@ import { doc, getDoc, updateDoc, collection, getDocs } from 'firebase/firestore'
 import { db } from '../../services/firebase';
 import { ICONS } from '../../constants';
 import { motion } from 'framer-motion';
+import { Campaign } from '../../types';
 
 // Helper component: Corrected the syntax error in the ternary operator.
 const AssignmentDropdown = ({ label, value, onChange, users, role }) => (
@@ -47,7 +48,25 @@ const CampaignAssignmentView = ({ campaignId, onClose }) => {
 
                 if (!campaignSnap.exists()) throw new Error("Campaign not found");
 
-                const campaignData = { id: campaignSnap.id, ...campaignSnap.data() };
+                const campaignDataRaw = campaignSnap.data();
+                const campaignData: Campaign = {
+                    id: campaignSnap.id,
+                    name: campaignDataRaw.name || '',
+                    status: campaignDataRaw.status || '',
+                    reelsCount: campaignDataRaw.reelsCount || 0,
+                    views: campaignDataRaw.views || 0,
+                    description: campaignDataRaw.description || '',
+                    reels: campaignDataRaw.reels || [],
+                    targetAudience: campaignDataRaw.targetAudience,
+                    budget: campaignDataRaw.budget,
+                    startDate: campaignDataRaw.startDate,
+                    endDate: campaignDataRaw.endDate,
+                    imageUrl: campaignDataRaw.imageUrl,
+                    assignedTo: campaignDataRaw.assignedTo || '',
+                    assignedVideoEditor: campaignDataRaw.assignedVideoEditor || '',
+                    assignedScriptWriter: campaignDataRaw.assignedScriptWriter || '',
+                    assignedThumbnailMaker: campaignDataRaw.assignedThumbnailMaker || '',
+                };
                 setCampaign(campaignData);
                 setSelections({
                     uploader: campaignData.assignedTo || '',
@@ -57,12 +76,15 @@ const CampaignAssignmentView = ({ campaignId, onClose }) => {
                 });
 
                 const usersList = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
+
+                // Type assertion for usersList to include role property
+                const typedUsersList = usersList as Array<{ id: string; role: string; name: string; email: string }>;
+
                 setUsers({
-                    uploaders: usersList.filter(u => u.role === 'uploader'),
-                    videoEditors: usersList.filter(u => u.role === 'video-editor'),
-                    scriptWriters: usersList.filter(u => u.role === 'script-writer'),
-                    thumbnailMakers: usersList.filter(u => u.role === 'thumbnail-maker'),
+                    uploaders: typedUsersList.filter(u => u.role === 'uploader'),
+                    videoEditors: typedUsersList.filter(u => u.role === 'video_editor'),
+                    scriptWriters: typedUsersList.filter(u => u.role === 'script_writer'),
+                    thumbnailMakers: typedUsersList.filter(u => u.role === 'thumbnail_maker'),
                 });
 
             } catch (err) {

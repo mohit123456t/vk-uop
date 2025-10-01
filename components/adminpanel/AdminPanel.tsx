@@ -13,6 +13,7 @@ import UserManagementView from './UserManagementView';
 import FinanceView from './FinanceView';
 import EarningsView from './EarningsView';
 import CommunicationView from './CommunicationView';
+import BrandPanel from '../brandpanel/BrandPanel';
 
 const NavItem = ({ icon, label, active, onClick, index }) => (
     <motion.button
@@ -35,6 +36,7 @@ const NavItem = ({ icon, label, active, onClick, index }) => (
 
 const AdminPanel = () => {
     const [activeView, setActiveView] = useState('dashboard');
+    const [selectedBrandId, setSelectedBrandId] = useState(null);
     const navigate = useNavigate();
 
     const navItems = [
@@ -62,10 +64,11 @@ const AdminPanel = () => {
             case 'profile': return <ProfileView />;
             case 'campaigns': return <CampaignManagerView />;
             case 'campaign-approval': return <CampaignApprovalView />;
-            case 'users': return <UserManagementView />;
+            case 'users': return <UserManagementView onViewBrand={(brandId) => { setSelectedBrandId(brandId); setActiveView('brand_view'); }} />;
             case 'finance': return <FinanceView setView={setActiveView} />;
             case 'earnings': return <EarningsView setView={setActiveView} />; // Pass setView prop
             case 'communication': return <CommunicationView />;
+            case 'brand_view': return <BrandPanel viewBrandId={selectedBrandId} onBack={() => setActiveView('users')} />;
             case 'dashboard':
             default:
                 return <DashboardView onViewChange={setActiveView} />;
