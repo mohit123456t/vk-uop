@@ -168,7 +168,7 @@ export const postToInstagram = async (accountId: string, mediaUrl: string, capti
         // Step 1: Create Media Container
         const createContainerUrl = `https://graph.facebook.com/v19.0/${instagramUserId}/media`;
         const createContainerParams = new URLSearchParams({
-            media_type: 'REELS',
+            media_type: 'VIDEO', // FIX: Changed from REELS to VIDEO for broader video format support
             video_url: finalMediaUrl, // Use the converted URL
             caption: caption,
             access_token: token,

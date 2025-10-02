@@ -85,8 +85,8 @@ const uploadVideoToYouTube = async (file: File, title: string, description: stri
   formData.append('video', file);
 
   try {
-    // This now correctly calls our backend uploader function, proxied by Vite.
-    const response = await fetch('/api/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status', {
+    // The request now correctly sends the upload request directly to the official Google API endpoint.
+    const response = await fetch('https://www.googleapis.com/upload/youtube/v3/videos?uploadType=multipart&part=snippet,status', {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
       body: formData,
@@ -94,7 +94,7 @@ const uploadVideoToYouTube = async (file: File, title: string, description: stri
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(`YouTube upload failed: ${error.error.message}`);
+      throw new Error(`YouTube API upload failed: ${error.error.message}`);
     }
     return await response.json();
   } catch (error) { 
@@ -106,7 +106,7 @@ const uploadVideoToYouTube = async (file: File, title: string, description: stri
 export const postToYoutube = async (channelId: string, title: string, videoUrl: string) => {
     console.log(`Starting YouTube post for channel ${channelId}. Title: ${title}`);
     
-    // THE REAL FIX: Using our own backend function to download the video.
+    // PERMANENT FIX: Using our own backend function to reliably download the video.
     // This avoids all public proxy and CORS issues.
     const proxyUrl = `/api/downloadProxy?url=${encodeURIComponent(videoUrl)}`;
 
